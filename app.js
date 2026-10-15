@@ -42,7 +42,7 @@
     else for (let i = 0; i < values.length; i++) values[i] = Math.floor(Math.random() * 256);
     return `PC-${Array.from(values, value => alphabet[value % alphabet.length]).join('')}`;
   }
-  function cookDurationMs() { return Math.max(6_000, 15_000 - (state.equipped.includes('blue-tile') ? 3_000 : 0) - (state.equipped.includes('wooden-spoon') ? 3_000 : 0)); }
+  function cookDurationMs() { return Math.max(4_000, 10_000 - (state.equipped.includes('blue-tile') ? 3_000 : 0) - (state.equipped.includes('wooden-spoon') ? 3_000 : 0)); }
   function dumplingBonus() { return (state.equipped.includes('herb-pot') ? 2 : 0) + (state.equipped.includes('wooden-spoon') ? 3 : 0); }
   function isCooking() { return state.endsAt !== null && Date.now() < state.endsAt; }
   function formatTime(ms) { return `00:${String(Math.max(0, Math.ceil(ms / 1000))).padStart(2, '0')}`; }
@@ -52,7 +52,7 @@
   }
   const upgrades = [
     { id:'herb-pot', name:'Fresh herb pots', desc:'+2 dumplings with every collected batch.', effect:'+2 dumplings / batch', cost:20, icon:'<path d="M18 32h24l-3 13H21zM20 32q-4-6-9-4m19 4q-3-8 2-14m1 14q8-7 12-4M31 20q-6-8-1-13m-4 12q-7-1-9-8m14 6q8-1 10-7"/>' },
-    { id:'blue-tile', name:'Blue kitchen tiles', desc:'Cook each batch 3 seconds faster.', effect:'15 sec → 12 sec', cost:35, icon:'<path d="M12 12h16v16H12zM32 12h16v16H32zM12 32h16v16H12zM32 32h16v16H32z"/><path d="M16 16h8m12 0h8M16 36h8m12 0h8"/>' },
+    { id:'blue-tile', name:'Blue kitchen tiles', desc:'Cook each batch 3 seconds faster.', effect:'10 sec → 7 sec', cost:35, icon:'<path d="M12 12h16v16H12zM32 12h16v16H32zM12 32h16v16H12zM32 32h16v16H32z"/><path d="M16 16h8m12 0h8M16 36h8m12 0h8"/>' },
     { id:'wooden-spoon', name:'Carved wooden spoon', desc:'+3 dumplings and 3 seconds faster.', effect:'+3 dumplings · −3 sec', cost:50, icon:'<path d="M26 17c4-6 14-8 19-3s3 15-3 19L25 50l-8-8z"/><path d="m24 40 12-13"/>' }
   ];
   function renderUpgrades() {

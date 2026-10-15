@@ -8,7 +8,7 @@ From this folder, run `open index.html`, or open `index.html` from Finder.
 
 ## Prototype features
 
-- 15-second base cooking timer; upgrades can shorten it.
+- 10-second base cooking timer; upgrades can shorten it.
 - Collect 10–15 base dumplings per batch, plus bonuses from owned upgrades.
 - Kitchen upgrades have gameplay effects: herb pots add 2 dumplings, blue tiles reduce cooking time by 3 seconds, and the carved spoon adds 3 dumplings and saves another 3 seconds.
 - Owned upgrades can be equipped or removed for free. Equipped items appear in the SVG kitchen scene and their effects apply to the next batch.
