@@ -1,35 +1,147 @@
 (() => {
-  const STORAGE_KEY = 'pelmeni-clicker-mini-v2';
+  const CLOUD_URL = 'https://qcagyjlsqlihdcdbxgxc.supabase.co/functions/v1/quick-function';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ejIIlpOGM6SViZ_ZcYYi-g_tDChykDP';
+  const LEGACY_STORAGE_KEY = 'pelmeni-clicker-mini-v2';
+  const telegramWebApp = window.Telegram?.WebApp;
+  const telegramInitData = typeof telegramWebApp?.initData === 'string' ? telegramWebApp.initData : '';
+  const telegramUser = telegramWebApp?.initDataUnsafe?.user || null;
+  const telegramUserId = Number.isSafeInteger(telegramUser?.id) && telegramUser.id > 0 ? telegramUser.id : null;
+  const STORAGE_KEY = telegramUserId ? `${LEGACY_STORAGE_KEY}:telegram:${telegramUserId}` : LEGACY_STORAGE_KEY;
   const freshState = () => ({ balance: 0, score: 0, batches: 0, startedAt: null, endsAt: null, batchDurationMs: null, upgrades: [], equipped: [], taskDay: todayKey(), taskBatches: 0, taskClaimedOn: null, referralCode: makeReferralCode() });
   const safeInt = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
   const safeTime = value => Number.isFinite(value) && value > 0 ? value : null;
   const $ = id => document.getElementById(id);
-  let state = loadState();
+  let state = loadLocalState();
   let toastTimer;
+  let stateReady = false;
+  let cloudSyncEnabled = false;
+  let saveVersion = 0;
+  let syncedVersion = 0;
+  let saveTimer = null;
+  let retryTimer = null;
+  let retryDelay = 2000;
+  let saveInFlight = false;
 
-  function loadState() {
+  function normalizeState(saved) {
+    if (!saved || typeof saved !== 'object') return freshState();
+    const upgradesOwned = Array.isArray(saved.upgrades) ? saved.upgrades.filter(id => ['herb-pot','blue-tile','wooden-spoon'].includes(id)) : [];
+    return {
+      balance: safeInt(saved.balance) + (saved.taskClaimedOn === todayKey() && saved.taskBalanceRewardVersion !== 1 ? 5 : 0),
+      score: safeInt(saved.score), batches: safeInt(saved.batches),
+      startedAt: safeTime(saved.startedAt), endsAt: safeTime(saved.endsAt),
+      batchDurationMs: safeInt(saved.batchDurationMs) || (Number.isFinite(saved.startedAt) && Number.isFinite(saved.endsAt) ? Math.max(1, saved.endsAt - saved.startedAt) : null),
+      upgrades: upgradesOwned,
+      equipped: Array.isArray(saved.equipped) ? saved.equipped.filter(id => upgradesOwned.includes(id)) : [...upgradesOwned],
+      taskDay: typeof saved.taskDay === 'string' ? saved.taskDay : todayKey(),
+      taskBatches: safeInt(saved.taskBatches),
+      taskClaimedOn: typeof saved.taskClaimedOn === 'string' ? saved.taskClaimedOn : null,
+      taskBalanceRewardVersion: 1,
+      referralCode: typeof saved.referralCode === 'string' && /^PC-[A-Z0-9]{6}$/.test(saved.referralCode) ? saved.referralCode : makeReferralCode()
+    };
+  }
+  function loadLocalState() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (!saved || typeof saved !== 'object') return freshState();
-      const state = {
-        balance: safeInt(saved.balance), score: safeInt(saved.score), batches: safeInt(saved.batches),
-        startedAt: safeTime(saved.startedAt), endsAt: safeTime(saved.endsAt),
-        batchDurationMs: safeInt(saved.batchDurationMs) || (Number.isFinite(saved.startedAt) && Number.isFinite(saved.endsAt) ? Math.max(1, saved.endsAt - saved.startedAt) : null),
-        upgrades: Array.isArray(saved.upgrades) ? saved.upgrades.filter(id => ['herb-pot','blue-tile','wooden-spoon'].includes(id)) : [],
-        taskDay: typeof saved.taskDay === 'string' ? saved.taskDay : todayKey(),
-        taskBatches: safeInt(saved.taskBatches),
-        taskClaimedOn: typeof saved.taskClaimedOn === 'string' ? saved.taskClaimedOn : null,
-        referralCode: typeof saved.referralCode === 'string' && /^PC-[A-Z0-9]{6}$/.test(saved.referralCode) ? saved.referralCode : makeReferralCode()
-      };
-      state.equipped = Array.isArray(saved.equipped)
-        ? saved.equipped.filter(id => state.upgrades.includes(id))
-        : [...state.upgrades];
-      return state;
+      let raw = localStorage.getItem(STORAGE_KEY);
+      let saved = raw ? JSON.parse(raw) : null;
+      if (!saved && telegramUserId && localStorage.getItem(`${LEGACY_STORAGE_KEY}:telegram-migrated`) !== '1') {
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacy) {
+          saved = JSON.parse(legacy);
+          if (saved.taskClaimedOn === todayKey() && saved.taskBalanceRewardVersion !== 1) {
+            saved.balance = safeInt(saved.balance) + 5;
+          }
+          saved.taskBalanceRewardVersion = 1;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+          localStorage.setItem(`${LEGACY_STORAGE_KEY}:telegram-migrated`, '1');
+        }
+      }
+      return normalizeState(saved);
     } catch { return freshState(); }
   }
-  function saveState() {
+  function serializeState() {
+    return {
+      balance: state.balance, score: state.score, batches: state.batches,
+      startedAt: state.startedAt, endsAt: state.endsAt, batchDurationMs: state.batchDurationMs,
+      upgrades: [...state.upgrades], equipped: [...state.equipped], taskDay: state.taskDay,
+      taskBatches: state.taskBatches, taskClaimedOn: state.taskClaimedOn,
+      taskBalanceRewardVersion: state.taskBalanceRewardVersion, referralCode: state.referralCode
+    };
+  }
+  function saveLocalState() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     catch { toast('Could not save your progress on this device.'); }
+  }
+  function saveState() {
+    saveLocalState();
+    if (!stateReady || !cloudSyncEnabled) return;
+    saveVersion++;
+    scheduleCloudSave();
+  }
+  function scheduleCloudSave(delay = 650) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flushCloudSave, delay);
+  }
+  async function postToCloud(payload) {
+    const response = await fetch(CLOUD_URL, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const text = await response.text();
+    let result = {};
+    try { result = text ? JSON.parse(text) : {}; } catch { result = { message: text }; }
+    if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : `HTTP ${response.status}`);
+    return result;
+  }
+  async function flushCloudSave() {
+    if (!cloudSyncEnabled || !stateReady || saveInFlight || syncedVersion >= saveVersion) return;
+    saveInFlight = true;
+    const versionBeingSent = saveVersion;
+    try {
+      await postToCloud({ action: 'save', initData: telegramInitData, state: serializeState() });
+      syncedVersion = versionBeingSent;
+      retryDelay = 2000;
+      console.info('[Pelmeni Clicker] Cloud sync saved.');
+    } catch (error) {
+      console.error('[Pelmeni Clicker] Cloud sync error; progress remains saved locally.', error.message);
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => { retryTimer = null; scheduleCloudSave(0); }, retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 30000);
+    } finally {
+      saveInFlight = false;
+      if (syncedVersion < saveVersion && !retryTimer) scheduleCloudSave(0);
+    }
+  }
+  async function initializeState() {
+    const appShell = $('appShell');
+    if (!telegramInitData) {
+      stateReady = true;
+      saveLocalState(); render();
+      console.info('[Pelmeni Clicker] No Telegram initData; using this browser’s local save.');
+      appShell.inert = false; appShell.setAttribute('aria-busy', 'false');
+      return;
+    }
+    try {
+      const result = await postToCloud({ action: 'load', initData: telegramInitData });
+      if (!Object.prototype.hasOwnProperty.call(result, 'game_state')) throw new Error('Unexpected load response: expected a game_state field.');
+      if (result.game_state === null) {
+        state = loadLocalState(); stateReady = true; cloudSyncEnabled = true;
+        saveLocalState(); saveVersion++; scheduleCloudSave(0);
+        console.info('[Pelmeni Clicker] No cloud save found; local progress queued for upload.');
+      } else if (typeof result.game_state === 'object' && !Array.isArray(result.game_state)) {
+        state = normalizeState(result.game_state); stateReady = true; cloudSyncEnabled = true;
+        saveLocalState();
+        console.info('[Pelmeni Clicker] Cloud save loaded successfully.');
+      } else {
+        throw new Error('Unexpected load response: game_state must be an object or null.');
+      }
+    } catch (error) {
+      state = loadLocalState(); stateReady = true; cloudSyncEnabled = false;
+      saveLocalState();
+      console.error('[Pelmeni Clicker] Cloud load/sync error; using local progress. Check the Edge Function response and network.', error.message);
+    }
+    render();
+    appShell.inert = false; appShell.setAttribute('aria-busy', 'false');
   }
   function todayKey() {
     const now = new Date();
@@ -73,7 +185,7 @@
     $('taskProgress').style.width = done ? '100%' : '0%';
     $('taskProgressText').textContent = `${done ? 1 : 0} / 1 batches`;
     $('claimTask').disabled = !done || claimed;
-    $('claimTask').textContent = claimed ? 'Reward collected today' : done ? 'Collect +5 game points' : 'Cook a batch to unlock';
+    $('claimTask').textContent = claimed ? 'Reward collected today' : done ? 'Collect +5 dumplings' : 'Cook a batch to unlock';
     $('taskDot').hidden = !done || claimed;
   }
   function render() {
@@ -86,6 +198,8 @@
     $('profileBalance').textContent = state.balance.toLocaleString('en-US');
     $('profileScore').textContent = state.score.toLocaleString('en-US');
     $('profileBatches').textContent = state.batches.toLocaleString('en-US');
+    $('playerName').textContent = telegramUser ? (telegramUser.first_name || telegramUser.username || 'Telegram Chef') : 'Little Chef';
+    $('accountStatus').textContent = telegramUser ? `TELEGRAM PROFILE · LOCAL ONLY${telegramUser.username ? ` · @${telegramUser.username}` : ''}` : 'LOCAL DEMO · THIS DEVICE';
     $('kitchenArt').classList.toggle('cooking', active);
     $('kitchenArt').classList.toggle('ready', ready);
     $('kitchenArt').classList.toggle('decor-herb-pot', state.equipped.includes('herb-pot'));
@@ -134,7 +248,7 @@
   });
   $('claimTask').addEventListener('click', () => {
     if (state.taskBatches < 1 || state.taskClaimedOn === todayKey()) return;
-    state.score += 5; state.taskClaimedOn = todayKey(); saveState(); render(); toast('Daily task complete! +5 game points.');
+    state.balance += 5; state.score += 5; state.taskClaimedOn = todayKey(); saveState(); render(); toast('Daily task complete! +5 dumplings added to your balance.');
   });
   $('copyReferral').addEventListener('click', async () => {
     try {
@@ -158,12 +272,12 @@
   }));
   document.querySelector('.season-pill').addEventListener('click', () => toast('Cozy Kitchen · Season 01'));
   try {
-    const telegramWebApp = window.Telegram?.WebApp;
     if (typeof telegramWebApp?.ready === 'function') telegramWebApp.ready();
     if (typeof telegramWebApp?.expand === 'function') telegramWebApp.expand();
   } catch (error) {
     console.warn('Telegram Web App initialization was skipped.', error);
   }
-  if (!state.referralCode) { state.referralCode = makeReferralCode(); saveState(); }
-  render(); saveState(); setInterval(render, 250);
+  if (!state.referralCode) state.referralCode = makeReferralCode();
+  initializeState();
+  setInterval(() => { if (stateReady) render(); }, 250);
 })();
