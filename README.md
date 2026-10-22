@@ -1,28 +1,36 @@
 # Pelmeni Clicker
 
-A mobile-first, Telegram Mini App-ready game prototype built with plain HTML, CSS, JavaScript, and inline SVG. It uses no package installs, paid assets, or external font requests.
+A mobile-first Telegram Mini App prototype built with plain HTML, CSS, JavaScript, and inline SVG. It has no build step or third-party game libraries.
 
-## Run on a Mac
+## Run locally on a Mac
 
-From this folder, run `open index.html`, or open `index.html` from Finder.
+Open `index.html` from Finder or run `open index.html`. Outside Telegram the game uses local browser storage. For multi-device cloud sync, open the HTTPS version inside the Telegram Mini App.
 
-## Prototype features
+Run the rule tests with `node --test tests/game-rules.test.cjs`.
 
-- 10-second base cooking timer; upgrades can shorten it.
-- Collect 10–15 base dumplings per batch, plus bonuses from owned upgrades.
-- Kitchen upgrades have gameplay effects: herb pots add 2 dumplings, blue tiles reduce cooking time by 3 seconds, and the carved spoon adds 3 dumplings and saves another 3 seconds.
-- Owned upgrades can be equipped or removed for free. Equipped items appear in the SVG kitchen scene and their effects apply to the next batch.
-- Previously purchased items stay owned and equipped after this update, so there is no need to buy them again.
-- Balance, score, batch count, upgrades, timer, and daily task progress save locally and sync through the configured Supabase Edge Function when valid Telegram `initData` is available.
-- Five navigation tabs: Kitchen, Upgrades, Tasks, Leaders, and Profile.
-- Daily task reward is 5 dumplings added to the balance and 5 game score after collecting a batch. Players who already claimed today's task before this fix receive the missing 5 dumplings once.
-- The Tasks tab generates a referral code and can copy/share an invite message.
-- If opened inside Telegram, the app calls Telegram Web App `ready()` and `expand()` when available.
+## Gameplay
 
-## Telegram integration and trust
+- New batches take 10 seconds for the current prototype. Active batches keep their saved start and end timestamps across reloads and devices.
+- One batch can cook at a time; buying the Second Pot upgrade unlocks two concurrent batches.
+- Collecting a batch gives 10–15 dumplings. Grandma's Recipe and A Bigger Pot improve dumpling rewards.
+- The pot can be tapped for dumplings, up to 40 rewarded taps each UTC day.
+- Upgrades use dumplings, have bounded levels, and increase in cost by about 1.5x each level.
+- Daily login gives 50 dumplings automatically. Starting a batch and buying an upgrade each unlock a claimable daily task worth 100 or 150 dumplings.
+- Achievements and the original decoration upgrades remain available. The Tasks tab shows where referral features will appear once supported by the server.
+- Dumplings are an in-game value, not cryptocurrency. The old game-points balance converts to dumplings the first time the updated game loads a save.
 
-The official Telegram Web Apps SDK is loaded in `index.html`; normal browser use still works if Telegram is not present. The app sends the raw `Telegram.WebApp.initData` to the configured Edge Function for load/save requests. The user ID shown in the profile still comes from `initDataUnsafe` and is display/local-storage information only; the frontend does not treat it as verified identity. Cloud state is loaded before the interface becomes interactive. The client expects a successful `load` response shaped as `{ "game_state": object | null }`, based on the supplied table/API description. I could verify that the live function rejects invalid Telegram data, but without valid Mini App `initData` I could not confirm its successful response shape. If the server has no save, the local save is uploaded; if cloud loading fails or returns an unexpected format, the app keeps using local storage and logs the issue. Never put the Telegram bot token or a Supabase secret/service-role key in these client files. The publishable key is public by design.
+## Save format and synchronization
 
-## Referral and prototype limits
+The existing fields `balance`, `score`, `points`, `batches`, `startedAt`, `endsAt`, `batchDurationMs`, `upgrades`, `equipped`, `taskDay`, `taskBatches`, `taskClaimedOn`, `taskBalanceRewardVersion`, and `referralCode` remain in the serialized save for compatibility. The retired `points` field is written as zero; `score` is retained as legacy data but no longer displayed or used as currency. Old spendable points convert to dumplings once, recorded by `pointsRetired`. Other fields include active batches, upgrade levels, daily task state, achievements, tap count, and profile dates. Old saves receive defaults during load; an active old batch keeps its original timestamp and duration.
 
-The referral card shares a code, but the current Edge Function integration only syncs game state; it does not verify another player's signup or award referral rewards. Progress and cooking time remain client-controlled, so cloud synchronization does not prevent cheating. Server-authoritative cooking, rewards, purchases, online leaderboards, wallet connections, TVC balances, and token payouts are not implemented. In-game dumplings and points are not cryptocurrency.
+The client still sends raw Telegram `initData` to the configured Edge Function. Local state is not applied until the cloud load has completed. The UI expects the successful load response to have `game_state` containing an object or `null`, based on the supplied API description. The app falls back to local storage on an error and shows a sync status. A public publishable Supabase key is used in the frontend; bot tokens and service-role keys must only be held server-side.
+
+The existing API only exposes whole-state `load` and `save` operations. It does not provide referral registration, invite statistics, atomic game actions, action IDs, state revisions, or server checks for cooking, purchases, tap limits, or task claims. Referral links and rewards therefore remain unavailable; the Tasks screen explains this instead of showing generated demo codes or statistics. Those game mechanics currently run in the browser and can be changed by a player. Cross-device use works by loading and then saving the snapshot, but simultaneous edits or an older device saving later can still overwrite newer cloud progress. This prototype does not claim cheat resistance or transaction-safe rewards.
+
+## Supabase changes
+
+The new game data fits in the existing `player_state.game_state` JSONB field, so no table migration or SQL command is required for this prototype. The current Edge Function source was not present in this project; its internals and successful response format could not be inspected here. Before relying on rewards or purchases, update the existing function to validate Telegram `initData` and perform game actions transactionally, with idempotency keys and server-owned rules. The client integration must then call those verified actions instead of uploading a trusted game balance. Keep secrets in Supabase Function secrets, never in the public files.
+
+## Checks
+
+The built-in rule tests cover the 10-second base time, upgrade price/level limits, reward math, second-pot settings, dumpling tap rewards and tap caps, and one-time task eligibility. Manual checks are still needed inside Telegram for Mini App layout and actual Supabase cross-device sync. To check sync, open the hosted HTTPS Mini App on two devices with the same Telegram account, make an in-game change on the first device, wait for `Cloud sync saved.` in the console, then reopen the app on the second device.
