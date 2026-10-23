@@ -278,6 +278,23 @@
     if (countForLevel) state.lifetimeDumplings += amount;
   }
   function markTaskProgress(id) { state.dailyTasks[id].progress = 1; }
+  function kitchenUpgradeIcon(id) {
+    const icons = {
+      'good-stove': '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 22h32v19H8z" fill="#3985bb" stroke="#bdeaff"/><path d="M12 27h24M14 34h20" fill="none" stroke="#d2f0ff" stroke-width="1.5"/><ellipse cx="17" cy="18" rx="8" ry="5" fill="#18334d" stroke="#f1c779"/><ellipse cx="31" cy="18" rx="8" ry="5" fill="#18334d" stroke="#f1c779"/><path d="M15 12c-2-3 2-4 0-7m16 7c-2-3 2-4 0-7" fill="none" stroke="#ff9d45" stroke-width="2.4" stroke-linecap="round"/></svg>',
+      'large-pot': '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 18h24l-2 23H14z" fill="#3985bb" stroke="#d2f0ff"/><path d="M10 18h28M15 15h18" fill="none" stroke="#f1c779" stroke-width="2.4" stroke-linecap="round"/><path d="M12 25H7v7h6m23-7h5v7h-6" fill="none" stroke="#d2f0ff" stroke-width="2.5" stroke-linejoin="round"/><path d="M17 18q1-6 7-6t7 6" fill="#fff1cf" stroke="#f1c779" stroke-width="1.6"/><path d="M20 14q4-3 8 0" fill="none" stroke="#fff" stroke-width="1.3"/></svg>',
+      'grandma-recipe': '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M7 11q9-4 17 2 8-6 17-2v27q-10-3-17 3-7-6-17-3z" fill="#f3d59a" stroke="#fff0c7"/><path d="M24 13v26M12 17q5-2 9 1m-9 5q5-2 9 1m14-7q-4-2-8 1m8 5q-4-2-8 1" fill="none" stroke="#a66e3e" stroke-width="1.8" stroke-linecap="round"/><path d="M32 5c-3-3-7 1-4 4l4 4 4-4c3-3-1-7-4-4Z" fill="#d98a87" stroke="#f8cbc0" stroke-width="1.2"/></svg>'
+    };
+    return icons[id] || '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="16"/><path d="M24 13v22M13 24h22"/></svg>';
+  }
+  function legacyUpgradeIcon(id) {
+    const icons = {
+      'herb-pot': '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 26h18l-2 16H17z" fill="#c9824b" stroke="#f1c779"/><path d="M24 27V13m0 8-8-7m8 10 8-9" fill="none" stroke="#55bb75"/><circle cx="24" cy="11" r="4" fill="#d8a7f0" stroke="#f1c779"/><path d="M15 14c-4-2-5-6-2-8 4 0 7 3 7 7m12 0c0-4 3-7 7-7 2 3 1 7-3 9" fill="#77cf88" stroke="#a9e2aa" stroke-width="1.6"/></svg>',
+      'blue-tile': '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M7 7h15v15H7zM26 7h15v15H26zM7 26h15v15H7zM26 26h15v15H26z" fill="#4b9ec6" stroke="#bdeaff"/><path d="M10 10h9v9h-9zm19 0h9v9h-9zM10 29h9v9h-9zm19 0h9v9h-9z" fill="#72c2e5" stroke="none"/></svg>',
+      'wooden-spoon': '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M14 8c-5 0-8 4-8 9 0 5 4 9 9 9s9-4 9-9c0-5-4-9-10-9Z" fill="#c98746" stroke="#ffcf82"/><path d="m20 23 18 18c2 2 5-1 3-3L23 20" fill="#c98746" stroke="#ffcf82"/><path d="M12 12c-2 2-2 5 0 7" fill="none" stroke="#ffe0aa" stroke-width="1.5"/></svg>',
+      'second-pot': '<svg viewBox="0 0 48 48" aria-hidden="true"><g fill="#3985bb" stroke="#d2f0ff" stroke-width="1.8" stroke-linejoin="round"><path d="M5 19h16l-2 19H7z"/><path d="M27 19h16l-2 19h-12z"/></g><g fill="none" stroke="#f1c779" stroke-width="2" stroke-linecap="round"><path d="M4 18h18m-18 4H3m19 0h-1M26 18h19m-18 4h-1m19 0h-1M10 15c-2-3 2-4 0-7m7 7c-2-3 2-4 0-7m14 7c-2-3 2-4 0-7m7 7c-2-3 2-4 0-7"/></g><circle cx="13" cy="28" r="2" fill="#fff1cf"/><circle cx="35" cy="28" r="2" fill="#fff1cf"/></svg>'
+    };
+    return icons[id] || '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="16"/><path d="M24 13v22M13 24h22"/></svg>';
+  }
   function renderLevelledUpgrades() {
     const container = $('upgradeList');
     const cards = rules.UPGRADE_DEFINITIONS.map(item => {
@@ -286,17 +303,17 @@
       const cost = maxed ? 0 : rules.upgradeCost(item, level);
       const enough = state.balance >= cost;
       const buttonLabel = maxed ? 'MAX LEVEL' : enough ? `Upgrade · ${cost} dumplings` : `Need ${cost} dumplings`;
-      return `<article class="upgrade-card level-card"><div class="upgrade-art"><span>${item.id === 'good-stove' ? '♨' : item.id === 'large-pot' ? '◉' : item.id === 'grandma-recipe' ? '✿' : '♨♨'}</span></div><div class="upgrade-copy"><div class="upgrade-title-row"><h2>${item.name}</h2><span class="level-pill">Lv. ${level}/${item.maxLevel}</span></div><p>${item.description}</p><small class="upgrade-effect">${item.effect(level)}${!maxed ? ` · Next: ${item.effect(level + 1)}` : ' · Max level reached'}</small><small class="upgrade-affordability">${maxed ? 'Fully upgraded' : enough ? 'Ready to upgrade' : `You have ${state.balance} dumplings`}</small></div><button class="upgrade-button" data-level-upgrade="${item.id}" type="button" ${maxed || !enough ? 'disabled' : ''}>${buttonLabel}</button></article>`;
+      return `<article class="upgrade-card level-card"><div class="upgrade-art level-upgrade-art">${kitchenUpgradeIcon(item.id)}</div><div class="upgrade-copy"><div class="upgrade-title-row"><h2>${item.name}</h2><span class="level-pill">Lv. ${level}/${item.maxLevel}</span></div><p>${item.description}</p><small class="upgrade-effect">${item.effect(level)}${!maxed ? ` · Next: ${item.effect(level + 1)}` : ' · Max level reached'}</small><small class="upgrade-affordability">${maxed ? 'Fully upgraded' : enough ? 'Ready to upgrade' : `You have ${state.balance} dumplings`}</small></div><button class="upgrade-button" data-level-upgrade="${item.id}" type="button" ${maxed || !enough ? 'disabled' : ''}>${buttonLabel}</button></article>`;
     }).join('');
     const legacy = [
-      { id:'herb-pot', name:'Fresh herb pots', desc:'+2 dumplings with every collected batch.', effect:'+2 dumplings / batch', cost:20, icon:'✿' },
-      { id:'blue-tile', name:'Blue kitchen tiles', desc:'Keep your original decorative upgrade.', effect:'Kitchen decoration', cost:35, icon:'▦' },
-      { id:'wooden-spoon', name:'Carved wooden spoon', desc:'+3 dumplings and a tiny cook-time bonus.', effect:'+3 dumplings / batch', cost:50, icon:'⌁' },
+      { id:'herb-pot', name:'Fresh herb pots', desc:'+2 dumplings with every collected batch.', effect:'+2 dumplings / batch', cost:20 },
+      { id:'blue-tile', name:'Blue kitchen tiles', desc:'Keep your original decorative upgrade.', effect:'Kitchen decoration', cost:35 },
+      { id:'wooden-spoon', name:'Carved wooden spoon', desc:'+3 dumplings and a tiny cook-time bonus.', effect:'+3 dumplings / batch', cost:50 },
       ...rules.DECORATION_DEFINITIONS.map(item => ({ ...item, desc:item.description }))
     ].map(item => {
       const owned = state.upgrades.includes(item.id);
       const equipped = state.equipped.includes(item.id);
-      return `<article class="upgrade-card legacy-card ${equipped ? 'equipped' : ''}"><div class="upgrade-art"><span>${item.icon}</span></div><div class="upgrade-copy"><h2>${item.name}</h2><p>${item.desc}</p><small class="upgrade-effect">${item.effect}</small></div><button class="upgrade-button" data-upgrade="${item.id}" type="button" ${!owned && state.balance < item.cost ? 'disabled' : ''}>${owned ? equipped ? 'REMOVE' : 'EQUIP' : `Get · ${item.cost} dumplings`}</button></article>`;
+      return `<article class="upgrade-card legacy-card ${equipped ? 'equipped' : ''}"><div class="upgrade-art decor-upgrade-art decor-icon-${item.id}">${legacyUpgradeIcon(item.id)}</div><div class="upgrade-copy"><h2>${item.name}</h2><p>${item.desc}</p><small class="upgrade-effect">${item.effect}</small></div><button class="upgrade-button" data-upgrade="${item.id}" type="button" ${!owned && state.balance < item.cost ? 'disabled' : ''}>${owned ? equipped ? 'REMOVE' : 'EQUIP' : `Get · ${item.cost} dumplings`}</button></article>`;
     }).join('');
     container.innerHTML = `<div class="upgrade-section-label">Kitchen upgrades <span>Spend dumplings</span></div>${cards}<div class="upgrade-section-label legacy-label">Kitchen decorations <span>Buy, equip, or remove</span></div>${legacy}`;
   }

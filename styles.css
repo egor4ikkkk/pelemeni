@@ -145,3 +145,15 @@ body[data-theme="light"] :focus-visible{outline-color:#087bad}
 .burner circle:nth-of-type(even){animation-delay:.4s}
 @keyframes burnerGlow{from{opacity:.58}to{opacity:1;filter:drop-shadow(0 0 4px #39bdff)}}
 @media(prefers-reduced-motion:reduce){.burner circle{animation:none}}
+
+/* Responsive illustrated decoration icons and stronger light-theme separation. */
+.decor-upgrade-art{width:49px;height:49px;aspect-ratio:1;padding:5px;overflow:hidden;background:linear-gradient(145deg,#214e70,#123454)}
+.decor-upgrade-art svg{display:block;width:100%;height:100%;max-width:38px;max-height:38px;flex:none}
+.level-upgrade-art{background:linear-gradient(145deg,#214e70,#123454)}
+.legacy-card .upgrade-button{width:clamp(76px,25vw,110px);max-width:none;flex:none}
+body[data-theme="light"] .decor-upgrade-art{background:linear-gradient(145deg,#e7f2f7,#dcecf3);border-color:#a9c5d3;box-shadow:inset 0 1px #fff,0 2px 5px #244b6010}
+body[data-theme="light"] .level-upgrade-art{background:linear-gradient(145deg,#e7f2f7,#dcecf3);border-color:#a9c5d3}
+body[data-theme="light"] .upgrade-card.equipped .decor-upgrade-art{background:linear-gradient(145deg,#e1f3ec,#cce9dc);border-color:#71b89a}
+@media(max-width:380px){.decor-upgrade-art{width:41px;height:41px;padding:3px}.decor-upgrade-art svg{max-width:35px;max-height:35px}.legacy-card .upgrade-button{width:76px;padding:6px 5px;font-size:8px}}
+.app-shell{min-height:var(--tg-viewport-stable-height,100svh)}
+.bottom-nav{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 7px)}
