@@ -61,7 +61,24 @@ test('batch rewards apply kitchen bonuses and decorations without a Second Pot i
 test('daily task reward is claimable once after its progress is complete', () => {
   const task = { progress: 1, claimed: false };
   assert.equal(rules.taskClaimAllowed(task), true);
+  assert.equal(rules.taskClaimAllowed({ progress: 29, goal: 30, claimed: false }), false);
+  assert.equal(rules.taskClaimAllowed({ progress: 30, goal: 30, claimed: false }), true);
   task.claimed = true;
   assert.equal(rules.taskClaimAllowed(task), false);
   assert.equal(rules.taskClaimAllowed({ progress: 0, claimed: false }), false);
+});
+
+test('streak starts on first visit and does not grow on a second visit the same UTC day', () => {
+  assert.deepEqual(rules.advanceStreak(0, 0, null, '2026-10-23'), { current: 1, best: 1, lastVisit: '2026-10-23', changed: true });
+  assert.deepEqual(rules.advanceStreak(1, 1, '2026-10-23', '2026-10-23'), { current: 1, best: 1, lastVisit: '2026-10-23', changed: false });
+});
+
+test('streak increments on the next UTC day and resets after a skipped day while keeping best', () => {
+  assert.deepEqual(rules.advanceStreak(4, 4, '2026-10-23', '2026-10-24'), { current: 5, best: 5, lastVisit: '2026-10-24', changed: true });
+  assert.deepEqual(rules.advanceStreak(5, 8, '2026-10-23', '2026-10-25'), { current: 1, best: 8, lastVisit: '2026-10-25', changed: true });
+});
+
+test('invalid or backwards UTC dates cannot increase a streak', () => {
+  assert.equal(rules.validUtcDay('2026-02-30'), false);
+  assert.deepEqual(rules.advanceStreak(5, 8, '2026-10-24', '2026-10-23'), { current: 5, best: 8, lastVisit: '2026-10-24', changed: false });
 });

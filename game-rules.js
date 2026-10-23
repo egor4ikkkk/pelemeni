@@ -47,10 +47,27 @@
     return { min: batchDumplingReward(10, levels, legacyBonus), max: batchDumplingReward(15, levels, legacyBonus) };
   }
   function taskClaimAllowed(task) {
-    return Boolean(task && task.progress >= 1 && task.claimed !== true);
+    const goal = Number.isSafeInteger(task?.goal) && task.goal > 0 ? task.goal : 1;
+    return Boolean(task && Number.isFinite(task.progress) && task.progress >= goal && task.claimed !== true);
+  }
+  function validUtcDay(day) {
+    if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+    const date = new Date(`${day}T00:00:00.000Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === day;
+  }
+  function advanceStreak(current, best, lastVisit, today) {
+    const safeCurrent = Number.isSafeInteger(current) && current > 0 ? current : 0;
+    const safeBest = Math.max(safeCurrent, Number.isSafeInteger(best) && best > 0 ? best : 0);
+    if (!validUtcDay(today)) return { current: safeCurrent, best: safeBest, lastVisit: validUtcDay(lastVisit) ? lastVisit : null, changed: false };
+    if (!validUtcDay(lastVisit)) return { current: 1, best: Math.max(1, safeBest), lastVisit: today, changed: true };
+    if (today === lastVisit) return { current: safeCurrent || 1, best: safeBest, lastVisit, changed: false };
+    const elapsedDays = (Date.parse(`${today}T00:00:00.000Z`) - Date.parse(`${lastVisit}T00:00:00.000Z`)) / 86_400_000;
+    if (elapsedDays < 0) return { current: safeCurrent, best: safeBest, lastVisit, changed: false };
+    const next = elapsedDays === 1 ? safeCurrent + 1 : 1;
+    return { current: next, best: Math.max(safeBest, next), lastVisit: today, changed: true };
   }
 
-  const rules = { BASE_COOK_MS, LEVEL_THRESHOLDS, DAILY_TASK_REWARDS, UPGRADE_DEFINITIONS, DECORATION_DEFINITIONS, upgradeCost, playerLevel, levelReward, kitchenLevel, cookDuration, upgradePurchaseQuote, batchDumplingReward, batchDumplingRange, taskClaimAllowed };
+  const rules = { BASE_COOK_MS, LEVEL_THRESHOLDS, DAILY_TASK_REWARDS, UPGRADE_DEFINITIONS, DECORATION_DEFINITIONS, upgradeCost, playerLevel, levelReward, kitchenLevel, cookDuration, upgradePurchaseQuote, batchDumplingReward, batchDumplingRange, taskClaimAllowed, validUtcDay, advanceStreak };
   if (typeof module !== 'undefined' && module.exports) module.exports = rules;
   else root.PelmeniRules = rules;
 })(globalThis);
