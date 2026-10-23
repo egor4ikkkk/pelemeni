@@ -126,7 +126,6 @@ body[data-theme="light"] :focus-visible{outline-color:#087bad}
 .pot-lid{opacity:0;transform-origin:210px 190px;pointer-events:none}
 .cooking:not(.ready) .pot-lid{opacity:1;animation:boilLid .22s ease-in-out infinite alternate}
 .decor-herbs .flower-bloom{filter:drop-shadow(0 1px 2px #34204199)}
-.decor-spoon{transform-origin:378px 270px}
 @keyframes boilLid{from{transform:translateY(0) rotate(-1deg)}to{transform:translateY(-3px) rotate(1deg)}}
 @keyframes softSteam{0%,100%{transform:translateY(4px);opacity:.42}50%{transform:translateY(-7px);opacity:.9}}
 @media(prefers-reduced-motion:reduce){.cooking:not(.ready) .pot-lid,.ready .steam-svg{animation:none}}
