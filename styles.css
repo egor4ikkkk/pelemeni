@@ -120,15 +120,17 @@ body[data-theme="light"] :focus-visible{outline-color:#087bad}
 /* Each vessel follows its own cooking state: closed while heating, open when ready. */
 .main-pot .dumplings,.second-pot-art .dumplings{opacity:0;transition:opacity .25s ease}
 .main-pot .steam-svg,.second-pot-art .steam-svg{opacity:0;animation:none;transition:opacity .25s ease}
-.main-pot .pot-lid,.second-pot-art .pot-lid{visibility:hidden;opacity:0;pointer-events:none;transform-box:fill-box;transform-origin:center bottom}
+.steam-stream{opacity:0}
+.main-pot .pot-lid,.second-pot-art .pot-lid{visibility:hidden;opacity:0;pointer-events:none;transform-box:fill-box;transform-origin:center bottom;will-change:transform}
 .pot-one-ready .main-pot .dumplings,.pot-two-ready .second-pot-art .dumplings{opacity:1}
-.pot-one-ready .main-pot .steam-svg,.pot-two-ready .second-pot-art .steam-svg{opacity:.82;animation:softSteam 2.2s ease-in-out infinite}
-.pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid{visibility:visible;opacity:1;animation:lidBoil .42s ease-in-out infinite alternate}
-.pot-one-cooking .main-pot,.pot-two-cooking .second-pot-art{animation:potBoil .14s linear infinite}
+.pot-one-ready .main-pot .steam-svg,.pot-two-ready .second-pot-art .steam-svg{opacity:1;filter:drop-shadow(0 0 5px #bfeaff)}
+.pot-one-ready .main-pot .steam-stream,.pot-two-ready .second-pot-art .steam-stream{animation:steamWisp 1.9s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.pot-one-ready .main-pot .steam-stream-two,.pot-two-ready .second-pot-art .steam-stream-two{animation-delay:-.63s}
+.pot-one-ready .main-pot .steam-stream-three,.pot-two-ready .second-pot-art .steam-stream-three{animation-delay:-1.26s}
+.pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid{visibility:visible;opacity:1}
 .decor-herbs .flower-bloom{filter:drop-shadow(0 1px 2px #34204199)}
-@keyframes lidBoil{0%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-4px) rotate(1.5deg)}100%{transform:translateY(-1px) rotate(-1deg)}}
-@keyframes potBoil{0%,100%{translate:0 0}25%{translate:-1.5px -1px}50%{translate:1.5px 0}75%{translate:-1px 1px}}
-@keyframes softSteam{0%,100%{transform:translateY(4px);opacity:.42}50%{transform:translateY(-7px);opacity:.9}}
+@keyframes lidBoil{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-4px) rotate(1.5deg)}}
+@keyframes steamWisp{0%{transform:translateY(2px) scale(.8);opacity:0}20%{opacity:.62}72%{transform:translateY(-11px) scale(1.06);opacity:.38}100%{transform:translateY(-17px) scale(1.15);opacity:0}}
 /* The second purchase adds a real, separately animated pot and matching controls. */
 .second-pot-art{opacity:0;pointer-events:none;transform-origin:210px 220px;transition:opacity .28s ease}
 .second-pot-unlocked .main-pot{transform:translate(-95px,8px) scale(.6);transform-origin:210px 220px;transition:transform .32s ease}
@@ -141,10 +143,10 @@ body[data-theme="light"] :focus-visible{outline-color:#087bad}
 .cook-actions.two-pots .primary-button span:first-child{max-width:calc(100% - 15px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .burner ellipse:first-child{filter:drop-shadow(0 4px 4px #05091399)}
-.burner circle{animation:burnerGlow 1.8s ease-in-out infinite alternate}
-.burner circle:nth-of-type(even){animation-delay:.4s}
-@keyframes burnerGlow{from{opacity:.58}to{opacity:1;filter:drop-shadow(0 0 4px #39bdff)}}
-@media(prefers-reduced-motion:reduce){.burner circle{animation:none}}
+.burner-flame{opacity:0;fill:#49caff;pointer-events:none;transition:opacity .2s ease;filter:drop-shadow(0 0 2px #36bfff)}
+.main-pot.burner-on .burner-flame,.second-pot-art.burner-on .burner-flame{opacity:.9;animation:burnerFlicker .72s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center bottom}
+@keyframes burnerFlicker{from{opacity:.68;filter:drop-shadow(0 0 2px #36bfff);transform:translateY(0) scaleY(.92)}to{opacity:1;filter:drop-shadow(0 0 5px #36bfff);transform:translateY(-1px) scaleY(1.04)}}
+@media(prefers-reduced-motion:reduce){.main-pot.burner-on .burner-flame,.second-pot-art.burner-on .burner-flame{animation:none;opacity:.85;transform:none}.pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid{animation:none!important}.pot-one-ready .main-pot .steam-stream,.pot-two-ready .second-pot-art .steam-stream{animation:none!important;transform:none!important;opacity:.6}}
 
 /* Responsive illustrated decoration icons and stronger light-theme separation. */
 .decor-upgrade-art{width:49px;height:49px;aspect-ratio:1;padding:5px;overflow:hidden;background:linear-gradient(145deg,#214e70,#123454)}

@@ -362,7 +362,14 @@
       const lid = potArt?.querySelector('.pot-lid');
       const dumplings = potArt?.querySelector('.dumplings');
       const steam = potArt?.querySelector('.steam-svg');
+      const visualState = isCooking ? 'cooking' : isReady ? 'ready' : 'empty';
+      if (potArt) potArt.classList.toggle('burner-on', isCooking);
+      if (potArt && potArt.dataset.visualState !== visualState) {
+        potArt.dataset.visualState = visualState;
+        if (lid) lid.style.animation = isCooking ? 'lidBoil .55s ease-in-out infinite' : 'none';
+      }
       if (lid) {
+        lid.style.display = isCooking ? 'inline' : 'none';
         lid.style.visibility = isCooking ? 'visible' : 'hidden';
         lid.style.opacity = isCooking ? '1' : '0';
       }
@@ -370,7 +377,10 @@
         dumplings.style.visibility = isReady ? 'visible' : 'hidden';
         dumplings.style.opacity = isReady ? '1' : '0';
       }
-      if (steam) steam.style.visibility = isReady ? 'visible' : 'hidden';
+      if (steam) {
+        steam.style.display = isReady ? 'inline' : 'none';
+        steam.style.visibility = isReady ? 'visible' : 'hidden';
+      }
       const button = pot === 1 ? $('cookButton') : $('cookButton2');
       const label = pot === 1 ? $('buttonText') : $('buttonText2');
       if (pot === 2) button.hidden = !secondUnlocked;
