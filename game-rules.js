@@ -1,17 +1,26 @@
 ((root) => {
   const BASE_COOK_MS = 10 * 1000;
-  const MAX_TAPS_PER_DAY = 40;
+  const LEVEL_THRESHOLDS = [0, 500, 1000, 1500, 2000, 3000, 4000, 5500, 7500, 10000];
+  const DAILY_TASK_REWARDS = { login: 5, cook: 10, upgrade: 15 };
   const UPGRADE_DEFINITIONS = [
     { id: 'good-stove', name: 'A Better Stove', description: 'Cook each batch 5% faster per level.', baseCost: 100, maxLevel: 10, effect: level => `${level * 5}% faster` },
     { id: 'large-pot', name: 'A Bigger Pot', description: 'Add one dumpling to every batch per level.', baseCost: 150, maxLevel: 10, effect: level => `+${level} dumplings / batch` },
-    { id: 'grandma-recipe', name: "Grandma's Recipe", description: 'Increase the base batch reward by 5% per level.', baseCost: 200, maxLevel: 10, effect: level => `+${level * 5}% batch reward` },
-    { id: 'fast-shaping', name: 'Quick Shaping', description: 'Earn extra dumplings when tapping the pot.', baseCost: 100, maxLevel: 5, effect: level => `+${level} dumpling per tap` },
-    { id: 'second-pot', name: 'Second Pot', description: 'Cook two batches at the same time.', baseCost: 1000, maxLevel: 1, effect: level => level ? '2 active batches' : '1 active batch' }
+    { id: 'grandma-recipe', name: "Grandma's Recipe", description: 'Increase the base batch reward by 5% per level.', baseCost: 200, maxLevel: 10, effect: level => `+${level * 5}% batch reward` }
+  ];
+  const DECORATION_DEFINITIONS = [
+    { id: 'second-pot', name: 'Second Pot', description: 'Equip a second burner and pot to cook another batch at the same time.', cost: 1000, effect: '2 independent cooking slots', icon: '♨♨' }
   ];
 
   function upgradeCost(definition, currentLevel) {
-    return Math.round(definition.baseCost * Math.pow(1.5, currentLevel));
+    if (currentLevel === 0 && Number.isSafeInteger(definition.temporaryCost)) return definition.temporaryCost;
+    return Math.round(definition.baseCost * Math.pow(1.5, currentLevel) / 1.5);
   }
+  function playerLevel(totalScore) {
+    let level = 1;
+    LEVEL_THRESHOLDS.forEach((threshold, index) => { if (totalScore >= threshold) level = index + 1; });
+    return level;
+  }
+  function levelReward(level) { return 10 + Math.max(0, level - 2) * 5; }
   function kitchenLevel(levels) {
     const total = Object.values(levels || {}).reduce((sum, level) => sum + (Number.isSafeInteger(level) && level > 0 ? level : 0), 0);
     return 1 + Math.floor(total / 2);
@@ -20,10 +29,6 @@
     const stoveLevel = Math.max(0, Math.min(10, Number.isSafeInteger(levels?.['good-stove']) ? levels['good-stove'] : 0));
     const reduction = Math.min(0.5, stoveLevel * 0.05);
     return Math.max(4 * 1000, Math.round(BASE_COOK_MS * (1 - reduction)) - Math.max(0, legacySecondsOff) * 1000);
-  }
-  function tapDumplings(levels) {
-    const level = Math.max(0, Math.min(5, Number.isSafeInteger(levels?.['fast-shaping']) ? levels['fast-shaping'] : 0));
-    return 1 + level;
   }
   function upgradePurchaseQuote(state, definition) {
     const level = Math.max(0, Math.min(definition.maxLevel, Number.isSafeInteger(state?.upgradeLevels?.[definition.id]) ? state.upgradeLevels[definition.id] : 0));
@@ -38,11 +43,14 @@
     const potLevel = Math.max(0, Math.min(10, Number.isSafeInteger(levels?.['large-pot']) ? levels['large-pot'] : 0));
     return Math.round(base * (1 + recipeLevel * 0.05)) + potLevel + Math.max(0, Math.trunc(legacyBonus));
   }
+  function batchDumplingRange(levels, legacyBonus = 0) {
+    return { min: batchDumplingReward(10, levels, legacyBonus), max: batchDumplingReward(15, levels, legacyBonus) };
+  }
   function taskClaimAllowed(task) {
     return Boolean(task && task.progress >= 1 && task.claimed !== true);
   }
 
-  const rules = { BASE_COOK_MS, MAX_TAPS_PER_DAY, UPGRADE_DEFINITIONS, upgradeCost, kitchenLevel, cookDuration, tapDumplings, upgradePurchaseQuote, batchDumplingReward, taskClaimAllowed };
+  const rules = { BASE_COOK_MS, LEVEL_THRESHOLDS, DAILY_TASK_REWARDS, UPGRADE_DEFINITIONS, DECORATION_DEFINITIONS, upgradeCost, playerLevel, levelReward, kitchenLevel, cookDuration, upgradePurchaseQuote, batchDumplingReward, batchDumplingRange, taskClaimAllowed };
   if (typeof module !== 'undefined' && module.exports) module.exports = rules;
   else root.PelmeniRules = rules;
 })(globalThis);

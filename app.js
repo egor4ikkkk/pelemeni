@@ -2,7 +2,7 @@
   const CLOUD_URL = 'https://qcagyjlsqlihdcdbxgxc.supabase.co/functions/v1/quick-function';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ejIIlpOGM6SViZ_ZcYYi-g_tDChykDP';
   const LEGACY_STORAGE_KEY = 'pelmeni-clicker-mini-v2';
-  const legacyUpgradeIds = ['herb-pot', 'blue-tile', 'wooden-spoon'];
+  const legacyUpgradeIds = ['herb-pot', 'blue-tile', 'wooden-spoon', 'second-pot'];
   const telegramWebApp = window.Telegram?.WebApp;
   const telegramInitData = typeof telegramWebApp?.initData === 'string' ? telegramWebApp.initData : '';
   const telegramUser = telegramWebApp?.initDataUnsafe?.user || null;
@@ -11,12 +11,12 @@
   const $ = id => document.getElementById(id);
   const safeInt = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
   const nowDay = () => new Date().toISOString().slice(0, 10);
-  const emptyDailyTasks = () => ({ cook: { progress: 0, claimed: false }, upgrade: { progress: 0, claimed: false } });
+  const emptyDailyTasks = () => ({ login: { progress: 0, claimed: false }, cook: { progress: 0, claimed: false }, upgrade: { progress: 0, claimed: false } });
   const freshState = () => ({
     balance: 0, score: 0, points: 0, pointsRetired: true, batches: 0, startedAt: null, endsAt: null, batchDurationMs: null,
     activeBatches: [], upgrades: [], equipped: [], upgradeLevels: {}, taskDay: nowDay(), taskBatches: 0,
     taskClaimedOn: null, taskBalanceRewardVersion: 1, referralCode: null, dailyDate: nowDay(),
-    dailyTasks: emptyDailyTasks(), loginRewardDate: null, tapDate: nowDay(), tapCount: 0, achievements: [],
+    dailyTasks: emptyDailyTasks(), loginRewardDate: null, firstLoginNoReward: false, lifetimeDumplings: 0, levelClaims: [], achievements: [],
     joinedAt: null, lastBatchReward: null, lastBatchAt: null
   });
   const appShell = $('appShell');
@@ -35,6 +35,9 @@
   function normalizeState(saved) {
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return freshState();
     const ownedLegacy = Array.isArray(saved.upgrades) ? saved.upgrades.filter(id => legacyUpgradeIds.includes(id)) : [];
+    const legacySecondPotLevel = safeInt(saved.upgradeLevels?.['second-pot']) > 0;
+    if (legacySecondPotLevel && !ownedLegacy.includes('second-pot')) ownedLegacy.push('second-pot');
+    const secondPotEquipped = ownedLegacy.includes('second-pot') && (legacySecondPotLevel && !(saved.upgrades || []).includes('second-pot') || Array.isArray(saved.equipped) && saved.equipped.includes('second-pot'));
     const currentLevels = {};
     for (const item of rules.UPGRADE_DEFINITIONS) {
       const level = safeInt(saved.upgradeLevels?.[item.id]);
@@ -43,11 +46,12 @@
     let activeBatches = [];
     if (Array.isArray(saved.activeBatches)) {
       activeBatches = saved.activeBatches.filter(batch => batch && typeof batch.id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(batch.id) && Number.isFinite(batch.startedAt) && Number.isFinite(batch.endsAt) && batch.endsAt > batch.startedAt)
-        .slice(0, currentLevels['second-pot'] ? 2 : 1)
-        .map(batch => {
+        .slice(0, (secondPotEquipped || ownedLegacy.includes('second-pot')) ? 2 : 1)
+        .map((batch, index) => {
           const savedDuration = safeInt(batch.durationMs) || batch.endsAt - batch.startedAt;
           const durationMs = savedDuration > rules.BASE_COOK_MS ? rules.BASE_COOK_MS : savedDuration;
-          return { id: batch.id, startedAt: batch.startedAt, endsAt: batch.startedAt + durationMs, durationMs };
+          const pot = batch.pot === 1 || batch.pot === 2 ? batch.pot : index + 1;
+          return { id: batch.id, pot, startedAt: batch.startedAt, endsAt: batch.startedAt + durationMs, durationMs };
         });
     } else if (Number.isFinite(saved.startedAt) && Number.isFinite(saved.endsAt) && saved.endsAt > saved.startedAt) {
       const savedDuration = safeInt(saved.batchDurationMs) || saved.endsAt - saved.startedAt;
@@ -55,7 +59,7 @@
       activeBatches = [{ id: 'legacy-batch', startedAt: saved.startedAt, endsAt: saved.startedAt + durationMs, durationMs }];
     }
     const dailyTasks = emptyDailyTasks();
-    for (const id of ['cook', 'upgrade']) {
+    for (const id of ['login', 'cook', 'upgrade']) {
       const oldTask = saved.dailyTasks?.[id];
       if (oldTask && typeof oldTask === 'object') dailyTasks[id] = { progress: Math.min(1, safeInt(oldTask.progress)), claimed: oldTask.claimed === true };
     }
@@ -63,19 +67,21 @@
     if (!saved.dailyTasks && saved.taskClaimedOn === nowDay()) dailyTasks.cook.claimed = true;
     return {
       balance: safeInt(saved.balance) + (saved.taskClaimedOn === nowDay() && saved.taskBalanceRewardVersion !== 1 ? 5 : 0) + (saved.pointsRetired === true ? 0 : (saved.points === undefined ? safeInt(saved.score) : safeInt(saved.points))),
-      score: safeInt(saved.score), points: 0, pointsRetired: true,
+      lifetimeDumplings: Number.isSafeInteger(saved.lifetimeDumplings) && saved.lifetimeDumplings >= 0 ? saved.lifetimeDumplings : safeInt(saved.balance),
+      levelClaims: Array.isArray(saved.levelClaims) ? [...new Set(saved.levelClaims.filter(level => Number.isSafeInteger(level) && level >= 2 && level <= 10))] : [],
+      score: Math.max(safeInt(saved.score), safeInt(saved.lifetimeDumplings), safeInt(saved.balance)), points: 0, pointsRetired: true,
       batches: safeInt(saved.batches), startedAt: activeBatches[0]?.startedAt ?? (Number.isFinite(saved.startedAt) ? saved.startedAt : null),
       endsAt: activeBatches[0]?.endsAt ?? (Number.isFinite(saved.endsAt) ? saved.endsAt : null),
       batchDurationMs: activeBatches[0]?.durationMs ?? (safeInt(saved.batchDurationMs) || null), activeBatches,
-      upgrades: ownedLegacy, equipped: Array.isArray(saved.equipped) ? saved.equipped.filter(id => ownedLegacy.includes(id)) : [...ownedLegacy],
+      upgrades: ownedLegacy, equipped: Array.isArray(saved.equipped) ? [...new Set([...saved.equipped.filter(id => ownedLegacy.includes(id)), ...(secondPotEquipped ? ['second-pot'] : [])])] : [...ownedLegacy],
       upgradeLevels: currentLevels, taskDay: typeof saved.taskDay === 'string' ? saved.taskDay : nowDay(),
       taskBatches: safeInt(saved.taskBatches), taskClaimedOn: typeof saved.taskClaimedOn === 'string' ? saved.taskClaimedOn : null,
       taskBalanceRewardVersion: 1,
       referralCode: typeof saved.referralCode === 'string' && /^PC-[A-Z0-9]{6}$/.test(saved.referralCode) ? saved.referralCode : null,
       dailyDate: typeof saved.dailyDate === 'string' ? saved.dailyDate : (typeof saved.taskDay === 'string' ? saved.taskDay : null),
       dailyTasks, loginRewardDate: typeof saved.loginRewardDate === 'string' ? saved.loginRewardDate : null,
-      tapDate: typeof saved.tapDate === 'string' ? saved.tapDate : nowDay(), tapCount: safeInt(saved.tapCount),
-      achievements: Array.isArray(saved.achievements) ? [...new Set(saved.achievements.filter(id => ['first-batch','score-1000','five-batches','first-upgrade','master-kitchen'].includes(id)))] : [],
+      firstLoginNoReward: saved.firstLoginNoReward === true,
+      achievements: Array.isArray(saved.achievements) ? [...new Set(saved.achievements.filter(id => ['first-batch','score-1000','five-batches','first-upgrade','master-kitchen','first-visit'].includes(id)))] : [],
       joinedAt: typeof saved.joinedAt === 'string' && !Number.isNaN(Date.parse(saved.joinedAt)) ? saved.joinedAt : null,
       lastBatchReward: saved.lastBatchReward && Number.isSafeInteger(saved.lastBatchReward.dumplings) && saved.lastBatchReward.dumplings >= 0 ? { dumplings: saved.lastBatchReward.dumplings } : null,
       lastBatchAt: typeof saved.lastBatchAt === 'string' && !Number.isNaN(Date.parse(saved.lastBatchAt)) ? saved.lastBatchAt : null
@@ -107,11 +113,12 @@
       startedAt: state.startedAt, endsAt: state.endsAt, batchDurationMs: state.batchDurationMs,
       activeBatches: state.activeBatches.map(batch => ({ ...batch })), upgrades: [...state.upgrades], equipped: [...state.equipped],
       upgradeLevels: { ...state.upgradeLevels }, taskDay: state.taskDay, taskBatches: state.taskBatches,
+      lifetimeDumplings: state.lifetimeDumplings, levelClaims: [...state.levelClaims],
       taskClaimedOn: state.taskClaimedOn, taskBalanceRewardVersion: state.taskBalanceRewardVersion,
       referralCode: state.referralCode, dailyDate: state.dailyDate, dailyTasks: JSON.parse(JSON.stringify(state.dailyTasks)),
-      loginRewardDate: state.loginRewardDate, tapDate: state.tapDate, tapCount: state.tapCount,
+      loginRewardDate: state.loginRewardDate, firstLoginNoReward: state.firstLoginNoReward,
       achievements: [...state.achievements], joinedAt: state.joinedAt, lastBatchReward: state.lastBatchReward,
-      lastBatchAt: state.lastBatchAt, schemaVersion: 3
+      lastBatchAt: state.lastBatchAt, schemaVersion: 4
     };
   }
   function saveLocalState() {
@@ -219,7 +226,8 @@
   function utcDateLabel() { return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date()); }
   function legacySecondsOff() { return (state.equipped.includes('blue-tile') ? 3 : 0) + (state.equipped.includes('wooden-spoon') ? 3 : 0); }
   function cookDurationMs() { return rules.cookDuration(state.upgradeLevels, legacySecondsOff()); }
-  function capacity() { return state.upgradeLevels['second-pot'] > 0 ? 2 : 1; }
+  function capacity() { return state.equipped.includes('second-pot') ? 2 : 1; }
+  function batchForPot(pot) { return state.activeBatches.find(batch => batch.pot === pot) || null; }
   function firstReadyBatch() { return state.activeBatches.filter(batch => Date.now() >= batch.endsAt).sort((a, b) => a.endsAt - b.endsAt)[0] || null; }
   function formatTime(ms) {
     const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -230,21 +238,22 @@
   }
   function applyDailyState() {
     const today = nowDay();
+    const firstVisit = !state.joinedAt && state.batches === 0 && state.balance === 0 && state.upgrades.length === 0 && totalUpgradeLevels() === 0;
     if (state.dailyDate !== today) {
       state.dailyDate = today;
       state.dailyTasks = emptyDailyTasks();
       state.loginRewardDate = null;
-      state.tapDate = today;
-      state.tapCount = 0;
+      state.firstLoginNoReward = false;
       state.taskDay = today;
       state.taskBatches = 0;
       state.taskClaimedOn = null;
     }
-    if (state.tapDate !== today) { state.tapDate = today; state.tapCount = 0; }
     if (state.loginRewardDate !== today) {
-      state.balance += 50; state.loginRewardDate = today;
+      if (firstVisit) { state.achievements.push('first-visit'); state.firstLoginNoReward = true; }
+      else addDumplings(rules.DAILY_TASK_REWARDS.login);
+      state.loginRewardDate = today;
       state.dailyTasks.login = { progress: 1, claimed: true };
-      toast('Daily login reward: +50 dumplings.');
+      if (!firstVisit) toast('Daily login reward: +5 dumplings.');
     } else {
       state.dailyTasks.login = { progress: 1, claimed: true };
     }
@@ -252,7 +261,7 @@
   }
   const achievementDefinitions = [
     { id: 'first-batch', title: 'First batch', description: 'Collect your first pot of dumplings.', achieved: () => state.batches >= 1 },
-    { id: 'score-1000', title: 'Kitchen regular', description: 'Collect 1,000 dumplings over time.', achieved: () => state.batches >= 100 },
+    { id: 'first-visit', title: 'First day in the kitchen', description: 'Welcome to Pelmeni Clicker.', achieved: () => state.achievements.includes('first-visit') },
     { id: 'five-batches', title: 'Five batches', description: 'Collect five batches.', achieved: () => state.batches >= 5 },
     { id: 'first-upgrade', title: 'First upgrade', description: 'Improve your kitchen for the first time.', achieved: () => totalUpgradeLevels() > 0 || state.upgrades.length > 0 },
     { id: 'master-kitchen', title: 'Master kitchen', description: 'Reach kitchen level 6.', achieved: () => rules.kitchenLevel(state.upgradeLevels) >= 6 }
@@ -263,7 +272,11 @@
     for (const definition of achievementDefinitions) if (definition.achieved() && !state.achievements.includes(definition.id)) { state.achievements.push(definition.id); changed = true; }
     if (changed) saveLocalState();
   }
-  function addDumplings(amount) { state.balance += amount; }
+  function addDumplings(amount, countForLevel = true) {
+    state.balance += amount;
+    state.score += amount;
+    if (countForLevel) state.lifetimeDumplings += amount;
+  }
   function markTaskProgress(id) { state.dailyTasks[id].progress = 1; }
   function renderLevelledUpgrades() {
     const container = $('upgradeList');
@@ -273,29 +286,38 @@
       const cost = maxed ? 0 : rules.upgradeCost(item, level);
       const enough = state.balance >= cost;
       const buttonLabel = maxed ? 'MAX LEVEL' : enough ? `Upgrade · ${cost} dumplings` : `Need ${cost} dumplings`;
-      return `<article class="upgrade-card level-card"><div class="upgrade-art"><span>${item.id === 'good-stove' ? '♨' : item.id === 'large-pot' ? '◉' : item.id === 'grandma-recipe' ? '✿' : item.id === 'fast-shaping' ? '✋' : '♨♨'}</span></div><div class="upgrade-copy"><div class="upgrade-title-row"><h2>${item.name}</h2><span class="level-pill">Lv. ${level}/${item.maxLevel}</span></div><p>${item.description}</p><small class="upgrade-effect">${item.effect(level)}${!maxed ? ` · Next: ${item.effect(level + 1)}` : ' · Max level reached'}</small><small class="upgrade-affordability">${maxed ? 'Fully upgraded' : enough ? 'Ready to upgrade' : `You have ${state.balance} dumplings`}</small></div><button class="upgrade-button" data-level-upgrade="${item.id}" type="button" ${maxed || !enough ? 'disabled' : ''}>${buttonLabel}</button></article>`;
+      return `<article class="upgrade-card level-card"><div class="upgrade-art"><span>${item.id === 'good-stove' ? '♨' : item.id === 'large-pot' ? '◉' : item.id === 'grandma-recipe' ? '✿' : '♨♨'}</span></div><div class="upgrade-copy"><div class="upgrade-title-row"><h2>${item.name}</h2><span class="level-pill">Lv. ${level}/${item.maxLevel}</span></div><p>${item.description}</p><small class="upgrade-effect">${item.effect(level)}${!maxed ? ` · Next: ${item.effect(level + 1)}` : ' · Max level reached'}</small><small class="upgrade-affordability">${maxed ? 'Fully upgraded' : enough ? 'Ready to upgrade' : `You have ${state.balance} dumplings`}</small></div><button class="upgrade-button" data-level-upgrade="${item.id}" type="button" ${maxed || !enough ? 'disabled' : ''}>${buttonLabel}</button></article>`;
     }).join('');
     const legacy = [
       { id:'herb-pot', name:'Fresh herb pots', desc:'+2 dumplings with every collected batch.', effect:'+2 dumplings / batch', cost:20, icon:'✿' },
       { id:'blue-tile', name:'Blue kitchen tiles', desc:'Keep your original decorative upgrade.', effect:'Kitchen decoration', cost:35, icon:'▦' },
-      { id:'wooden-spoon', name:'Carved wooden spoon', desc:'+3 dumplings and a tiny cook-time bonus.', effect:'+3 dumplings / batch', cost:50, icon:'⌁' }
+      { id:'wooden-spoon', name:'Carved wooden spoon', desc:'+3 dumplings and a tiny cook-time bonus.', effect:'+3 dumplings / batch', cost:50, icon:'⌁' },
+      ...rules.DECORATION_DEFINITIONS.map(item => ({ ...item, desc:item.description }))
     ].map(item => {
       const owned = state.upgrades.includes(item.id);
       const equipped = state.equipped.includes(item.id);
       return `<article class="upgrade-card legacy-card ${equipped ? 'equipped' : ''}"><div class="upgrade-art"><span>${item.icon}</span></div><div class="upgrade-copy"><h2>${item.name}</h2><p>${item.desc}</p><small class="upgrade-effect">${item.effect}</small></div><button class="upgrade-button" data-upgrade="${item.id}" type="button" ${!owned && state.balance < item.cost ? 'disabled' : ''}>${owned ? equipped ? 'REMOVE' : 'EQUIP' : `Get · ${item.cost} dumplings`}</button></article>`;
     }).join('');
-    container.innerHTML = `<div class="upgrade-section-label">Kitchen upgrades <span>Spend dumplings</span></div>${cards}<div class="upgrade-section-label legacy-label">Your original decorations <span>Existing purchases kept</span></div>${legacy}`;
+    container.innerHTML = `<div class="upgrade-section-label">Kitchen upgrades <span>Spend dumplings</span></div>${cards}<div class="upgrade-section-label legacy-label">Kitchen decorations <span>Buy, equip, or remove</span></div>${legacy}`;
   }
   function renderDailyTasks() {
+    const firstVisitToday = state.firstLoginNoReward && state.loginRewardDate === nowDay();
     const tasks = [
-      { id:'login', title:'Visit the kitchen', description:'Daily dumpling reward. Added automatically on your first visit.', reward:50, progress:state.dailyTasks.login.progress, claimed:state.dailyTasks.login.claimed, goal:1, auto:true },
-      { id:'cook', title:'Start a batch', description:'Put a pot of dumplings on the stove.', reward:100, progress:state.dailyTasks.cook.progress, claimed:state.dailyTasks.cook.claimed, goal:1 },
-      { id:'upgrade', title:'Improve your kitchen', description:'Buy one kitchen upgrade today.', reward:150, progress:state.dailyTasks.upgrade.progress, claimed:state.dailyTasks.upgrade.claimed, goal:1 }
+      { id:'login', title:'Visit the kitchen', description:'Your first visit gives a welcome achievement instead of dumplings.', reward:firstVisitToday ? 0 : rules.DAILY_TASK_REWARDS.login, progress:state.dailyTasks.login.progress, claimed:state.dailyTasks.login.claimed, goal:1, auto:true },
+      { id:'cook', title:'Start a batch', description:'Put a pot of dumplings on the stove.', reward:rules.DAILY_TASK_REWARDS.cook, progress:state.dailyTasks.cook.progress, claimed:state.dailyTasks.cook.claimed, goal:1 },
+      { id:'upgrade', title:'Improve your kitchen', description:'Buy one kitchen upgrade today.', reward:rules.DAILY_TASK_REWARDS.upgrade, progress:state.dailyTasks.upgrade.progress, claimed:state.dailyTasks.upgrade.claimed, goal:1 }
     ];
+    const nextLevel = Array.from({ length: 9 }, (_, index) => index + 2).find(level => !state.levelClaims.includes(level));
+    if (nextLevel) {
+      const threshold = rules.LEVEL_THRESHOLDS[nextLevel - 1];
+      tasks.push({ id:`level-${nextLevel}`, title:`Reach level ${nextLevel}`, description:`Reach ${threshold.toLocaleString('en-US')} total score to reach level ${nextLevel}.`, reward:rules.levelReward(nextLevel), progress:Math.min(state.score, threshold), claimed:false, goal:threshold, levelTask:true });
+    }
     $('taskList').innerHTML = tasks.map(task => {
       const complete = task.progress >= task.goal;
       const label = task.claimed ? task.auto ? 'Added today' : 'Collected' : complete ? 'Collect reward' : `${task.progress}/${task.goal}`;
-      return `<article class="task-card ${task.claimed ? 'task-complete' : ''}"><div class="task-icon">${task.id === 'login' ? '↗' : task.id === 'cook' ? '♨' : '✦'}</div><div class="task-copy"><span class="task-tag">DAILY · ${utcDateLabel()}</span><h2>${task.title}</h2><p>${task.description}</p><div class="task-progress"><span style="width:${complete ? 100 : 0}%"></span></div><small>${complete ? 'Complete' : 'In progress'}</small></div><div class="task-reward"><b>+${task.reward}</b><small>dumplings</small><button class="task-claim" type="button" data-claim-task="${task.id}" ${task.claimed || !complete || task.auto ? 'disabled' : ''}>${label}</button></div></article>`;
+      const progressPercent = Math.min(100, task.progress / task.goal * 100);
+      const progressLabel = task.levelTask ? `${task.progress.toLocaleString('en-US')} / ${task.goal.toLocaleString('en-US')} dumplings earned` : complete ? 'Complete' : 'In progress';
+      return `<article class="task-card ${task.claimed || complete ? 'task-complete' : ''}"><div class="task-icon">${task.levelTask ? '★' : task.id === 'login' ? '↗' : task.id === 'cook' ? '♨' : '✦'}</div><div class="task-copy"><span class="task-tag">${task.levelTask ? 'LEVEL MILESTONE' : `DAILY · ${utcDateLabel()}`}</span><h2>${task.title}</h2><p>${task.description}</p><div class="task-progress"><span style="width:${progressPercent}%"></span></div><small>${progressLabel}</small></div><div class="task-reward"><b>+${task.reward}</b><small>dumplings</small><button class="task-claim" type="button" data-claim-task="${task.id}" ${task.claimed || !complete || task.auto ? 'disabled' : ''}>${label}</button></div></article>`;
     }).join('');
     $('taskDot').hidden = !tasks.some(task => task.progress >= task.goal && !task.claimed && !task.auto);
   }
@@ -307,45 +329,57 @@
   }
   function updateBatchFields() {
     const batches = state.activeBatches;
-    const primary = batches[0] || null;
     const ready = firstReadyBatch();
-    const active = primary && Date.now() < primary.endsAt;
-    $('kitchenArt').classList.toggle('cooking', Boolean(active));
-    $('kitchenArt').classList.toggle('ready', Boolean(ready));
-    $('gameCard').classList.toggle('cooking', Boolean(active));
+    const secondUnlocked = capacity() === 2 || Boolean(batchForPot(2));
+    const art = $('kitchenArt');
+    art.classList.toggle('second-pot-unlocked', secondUnlocked);
+    art.classList.toggle('cooking', batches.some(batch => Date.now() < batch.endsAt));
+    art.classList.toggle('ready', Boolean(ready));
+    for (const pot of [1, 2]) {
+      const batch = batchForPot(pot);
+      const isReady = Boolean(batch && Date.now() >= batch.endsAt);
+      const isCooking = Boolean(batch && !isReady);
+      art.classList.toggle(`pot-${pot}-cooking`, isCooking);
+      art.classList.toggle(`pot-${pot}-ready`, isReady);
+      const button = pot === 1 ? $('cookButton') : $('cookButton2');
+      const label = pot === 1 ? $('buttonText') : $('buttonText2');
+      if (pot === 2) button.hidden = !secondUnlocked;
+      if (secondUnlocked) label.textContent = isReady ? `Collect Pot ${pot}` : isCooking ? `Cooking · ${formatTime(batch.endsAt - Date.now())}` : `Start Pot ${pot}`;
+      else if (pot === 1) label.textContent = isReady ? 'Collect dumplings' : isCooking ? `Cooking · ${formatTime(batch.endsAt - Date.now())}` : 'Start cooking';
+      button.disabled = isCooking || (pot === 2 && !secondUnlocked);
+      button.setAttribute('aria-label', isReady ? `Collect dumplings from pot ${pot}` : isCooking ? `Pot ${pot} is cooking` : `Start cooking in pot ${pot}`);
+    }
+    $('cookActions').classList.toggle('two-pots', secondUnlocked);
+    $('gameCard').classList.toggle('cooking', batches.some(batch => Date.now() < batch.endsAt));
     $('gameCard').classList.toggle('ready', Boolean(ready));
-    $('statusText').textContent = ready ? 'A batch is ready to collect' : batches.length ? 'Dumplings are bubbling' : 'Kitchen is ready';
-    $('artStatus').textContent = ready ? 'FRESHLY COOKED FOR YOU' : batches.length ? 'POT ON · GOOD THINGS TAKE TIME' : 'FRESH FROM THE KITCHEN';
-    $('batchTag').textContent = ready ? 'READY' : batches.length ? `COOKING · ${batches.length}/${capacity()}` : 'NEW BATCH';
-    $('timerLabel').textContent = ready ? 'BATCH COMPLETE' : batches.length ? 'TIME LEFT · NEXT POT' : 'COOKING TIME';
+    $('statusText').textContent = ready ? `Pot ${ready.pot} is ready to collect` : batches.length ? `${batches.length} ${batches.length === 1 ? 'pot is' : 'pots are'} cooking` : 'Kitchen is ready';
+    $('artStatus').textContent = ready ? `POT ${ready.pot} · READY TO COLLECT` : batches.length ? 'POT ON · GOOD THINGS TAKE TIME' : 'FRESH FROM THE KITCHEN';
+    $('batchTag').textContent = ready ? `POT ${ready.pot} · READY` : batches.length ? `COOKING · ${batches.length}/${capacity()}` : 'NEW BATCH';
+    $('timerLabel').textContent = ready ? `POT ${ready.pot} COMPLETE` : batches.length ? 'TIME LEFT · NEXT POT' : 'COOKING TIME';
     const displayBatch = ready || batches.filter(batch => Date.now() < batch.endsAt).sort((a,b) => a.endsAt-b.endsAt)[0];
     $('timer').textContent = ready ? 'READY!' : displayBatch ? formatTime(displayBatch.endsAt - Date.now()) : formatTime(cookDurationMs());
     $('progress').style.width = ready ? '100%' : displayBatch ? `${Math.min(100, Math.max(0, (Date.now() - displayBatch.startedAt) / displayBatch.durationMs * 100))}%` : '0%';
-    $('cookHint').textContent = ready ? 'Your batch is ready. Collect it to add the rewards.' : batches.length >= capacity() ? 'Your kitchen is full. Come back when a pot is ready.' : batches.length ? `Start another batch in pot ${batches.length + 1}, or come back when this one is ready.` : `A fresh batch takes ${formatTime(cookDurationMs())}. You can close the app and return later.`;
-    $('buttonText').textContent = ready ? 'Collect dumplings' : batches.length < capacity() ? `Start cooking${capacity() === 2 && batches.length === 1 ? ' · Pot 2' : ''}` : 'Cooking…';
-    $('cookButton').disabled = !ready && batches.length >= capacity();
-    $('rewardNote').innerHTML = `<span>✦</span> <b>10–15 dumplings</b> per batch · Tap the pot for extra dumplings`;
-    $('activeBatchList').innerHTML = batches.slice(1).map((batch, index) => {
-      const isReady = Date.now() >= batch.endsAt;
-      return `<article class="active-batch"><span>Pot ${index + 2}</span><strong>${isReady ? 'Ready to collect' : formatTime(batch.endsAt - Date.now())}</strong><button data-collect-batch="${batch.id}" type="button" ${isReady ? '' : 'disabled'}>${isReady ? 'Collect' : 'Cooking'}</button></article>`;
-    }).join('');
-    $('tapCount').textContent = `${Math.max(0, rules.MAX_TAPS_PER_DAY - state.tapCount)} pot taps left today`;
+    $('cookHint').textContent = ready ? `Pot ${ready.pot} is ready. Collect its dumplings with the matching button.` : batches.length >= capacity() ? 'Both pots are cooking. Collect a batch when it is ready.' : batches.length ? 'The other pot is free. Start a batch there while this one cooks.' : `A fresh batch takes ${formatTime(cookDurationMs())}. You can close the app and return later.`;
+    const range = rules.batchDumplingRange(state.upgradeLevels, (state.equipped.includes('herb-pot') ? 2 : 0) + (state.equipped.includes('wooden-spoon') ? 3 : 0));
+    $('rewardNote').innerHTML = `<span>✦</span> <b>${range.min}–${range.max} dumplings</b> per batch`;
+    $('activeBatchList').innerHTML = '';
   }
   function render() {
     $('balance').textContent = state.balance.toLocaleString('en-US');
-    $('dumplingStat').textContent = state.balance.toLocaleString('en-US');
-    $('upgradePoints').textContent = state.balance.toLocaleString('en-US');
-    $('leaderScore').textContent = `${state.balance.toLocaleString('en-US')} dumplings`;
+    $('overallScore').textContent = state.score.toLocaleString('en-US');
+    $('upgradeBalance').textContent = state.balance.toLocaleString('en-US');
+    $('leaderScore').textContent = `${state.score.toLocaleString('en-US')} points`;
     $('batches').textContent = state.batches.toLocaleString('en-US');
     $('playerName').textContent = telegramUser ? (telegramUser.first_name || telegramUser.username || 'Telegram Chef') : 'Little Chef';
     $('accountStatus').textContent = telegramUser ? `TELEGRAM · @${telegramUser.username || 'CHEF'}` : 'LOCAL DEMO · THIS DEVICE';
     $('profileBalance').textContent = state.balance.toLocaleString('en-US');
+    $('profileScore').textContent = state.score.toLocaleString('en-US');
     $('profileBatches').textContent = state.batches.toLocaleString('en-US');
-    $('profileKitchenLevel').textContent = rules.kitchenLevel(state.upgradeLevels);
+    $('profileKitchenLevel').textContent = rules.playerLevel(state.score);
     $('profileUpgradeCount').textContent = totalUpgradeLevels() + state.upgrades.length;
     $('joinedDate').textContent = state.joinedAt ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(state.joinedAt)) : 'Today';
-    $('kitchenLevel').textContent = `KITCHEN LEVEL ${rules.kitchenLevel(state.upgradeLevels)}`;
-    $('kitchenLevelBanner').textContent = `COZY KITCHEN · LEVEL ${rules.kitchenLevel(state.upgradeLevels)}`;
+    $('kitchenLevel').textContent = `PLAYER LEVEL ${rules.playerLevel(state.score)}`;
+    $('kitchenLevelBanner').textContent = `COZY KITCHEN · LEVEL ${rules.playerLevel(state.score)}`;
     $('seasonTitle').textContent = state.lastBatchReward ? `Last batch · ${state.lastBatchReward.dumplings} dumplings` : 'Your kitchen story starts here';
     $('lastBatchText').textContent = state.lastBatchReward ? `Last batch: +${state.lastBatchReward.dumplings} dumplings.` : 'Your first batch is waiting to be cooked.';
     $('kitchenArt').classList.toggle('decor-herb-pot', state.equipped.includes('herb-pot'));
@@ -354,19 +388,20 @@
     updateBatchFields();
     renderLevelledUpgrades(); renderDailyTasks(); renderAchievements();
   }
-  function startBatch() {
-    if (state.activeBatches.length >= capacity()) return false;
+  function startBatch(pot = 1) {
+    if (pot > capacity() || batchForPot(pot)) return false;
     const startedAt = Date.now();
     const durationMs = cookDurationMs();
     const id = globalThis.crypto?.randomUUID ? crypto.randomUUID() : `batch-${startedAt}-${Math.random().toString(36).slice(2, 8)}`;
-    state.activeBatches.push({ id, startedAt, endsAt: startedAt + durationMs, durationMs });
+    state.activeBatches.push({ id, pot, startedAt, endsAt: startedAt + durationMs, durationMs });
+    state.activeBatches.sort((a, b) => a.pot - b.pot);
     syncLegacyBatchFields();
     markTaskProgress('cook');
     saveState(); render(); toast('The pot is on. See you when it is ready!');
     return true;
   }
   function syncLegacyBatchFields() {
-    const primary = state.activeBatches[0] || null;
+    const primary = batchForPot(1) || state.activeBatches[0] || null;
     state.startedAt = primary?.startedAt ?? null;
     state.endsAt = primary?.endsAt ?? null;
     state.batchDurationMs = primary?.durationMs ?? null;
@@ -376,7 +411,7 @@
     if (!batch || Date.now() < batch.endsAt) return false;
     const oldBonus = (state.equipped.includes('herb-pot') ? 2 : 0) + (state.equipped.includes('wooden-spoon') ? 3 : 0);
     const reward = rules.batchDumplingReward(10 + Math.floor(Math.random() * 6), state.upgradeLevels, oldBonus);
-    state.balance += reward;
+    addDumplings(reward);
     state.batches++;
     state.taskBatches++;
     state.lastBatchReward = { dumplings: reward };
@@ -387,20 +422,19 @@
     toast(`Collected ${reward} dumplings.`);
     return true;
   }
-  $('cookButton').addEventListener('click', () => {
-    const ready = firstReadyBatch();
-    if (ready) { collectBatch(ready.id); return; }
-    startBatch();
-  });
+  function usePot(pot) {
+    const batch = batchForPot(pot);
+    if (batch) {
+      if (Date.now() >= batch.endsAt) collectBatch(batch.id);
+      return;
+    }
+    startBatch(pot);
+  }
+  $('cookButton').addEventListener('click', () => usePot(1));
+  $('cookButton2').addEventListener('click', () => usePot(2));
   $('activeBatchList').addEventListener('click', event => {
     const button = event.target.closest('[data-collect-batch]');
     if (button) collectBatch(button.dataset.collectBatch);
-  });
-  $('tapPot').addEventListener('click', () => {
-    if (state.tapCount >= rules.MAX_TAPS_PER_DAY) { toast('You have used today’s pot taps. Come back tomorrow!'); return; }
-    const reward = rules.tapDumplings(state.upgradeLevels);
-    state.tapCount++; addDumplings(reward); saveState(); render();
-    $('tapFeedback').textContent = `+${reward}`; $('tapFeedback').classList.remove('tap-pop'); void $('tapFeedback').offsetWidth; $('tapFeedback').classList.add('tap-pop');
   });
   $('upgradeList').addEventListener('click', event => {
     const levelButton = event.target.closest('[data-level-upgrade]');
@@ -419,7 +453,7 @@
     }
     const legacyButton = event.target.closest('[data-upgrade]');
     if (!legacyButton) return;
-    const item = { 'herb-pot': ['Fresh herb pots',20], 'blue-tile': ['Blue kitchen tiles',35], 'wooden-spoon': ['Carved wooden spoon',50] }[legacyButton.dataset.upgrade];
+    const item = { 'herb-pot': ['Fresh herb pots',20], 'blue-tile': ['Blue kitchen tiles',35], 'wooden-spoon': ['Carved wooden spoon',50], 'second-pot': ['Second Pot',1000] }[legacyButton.dataset.upgrade];
     if (!item) return;
     const id = legacyButton.dataset.upgrade;
     if (state.upgrades.includes(id)) {
@@ -436,7 +470,17 @@
     if (!button) return;
     const id = button.dataset.claimTask;
     const task = state.dailyTasks[id];
-    const rewards = { cook: 100, upgrade: 150 };
+    if (id.startsWith('level-')) {
+      const level = Number(id.slice('level-'.length));
+      const threshold = rules.LEVEL_THRESHOLDS[level - 1];
+      if (!Number.isSafeInteger(level) || level < 2 || level > 10 || state.levelClaims.includes(level) || state.score < threshold) return;
+      state.levelClaims.push(level);
+      const reward = rules.levelReward(level);
+      addDumplings(reward, false);
+      saveState(); render(); toast(`Level ${level} reward: +${reward} dumplings.`);
+      return;
+    }
+    const rewards = { cook: rules.DAILY_TASK_REWARDS.cook, upgrade: rules.DAILY_TASK_REWARDS.upgrade };
     if (!task || !rules.taskClaimAllowed(task) || !rewards[id]) return;
     task.claimed = true; addDumplings(rewards[id]);
     if (id === 'cook') { state.taskClaimedOn = nowDay(); state.taskBalanceRewardVersion = 1; }
