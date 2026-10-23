@@ -90,8 +90,13 @@
     <section class="screen" id="screen-tasks" data-screen="tasks">
       <div class="page-heading"><span class="overline">SMALL GOALS, STEADY PROGRESS</span><h1>Daily <em>tasks</em></h1><p>Tasks reset at 00:00 UTC. Rewards are dumplings.</p></div>
       <article class="streak-card" id="streakSummary" aria-live="polite"></article>
+      <section class="streak-calendar-panel" aria-labelledby="streakCalendarTitle">
+        <div class="streak-calendar-heading"><div><span class="task-tag">A LITTLE SOMETHING EACH DAY</span><h2 id="streakCalendarTitle">Daily rewards</h2></div><span class="streak-calendar-cycle" id="streakCycleLabel">7-day cycle</span></div>
+        <div class="streak-calendar" id="streakCalendar" aria-live="polite"></div>
+        <p class="streak-claim-note" id="streakClaimNote">Rewards are provisional. Claiming is paused until a secure server reward endpoint is available.</p>
+      </section>
       <div class="task-list" id="taskList"></div>
-      <p class="fine-print">Streak dates use UTC and follow the device clock. The current save API has no trusted-time or reward-claim endpoint, so streak milestones are cosmetic badges.</p>
+      <p class="fine-print">Streak dates use UTC and the current device clock. Current streak visits sync with your save, but dates and reward claims are not server-verified.</p>
       <div class="referral-card"><div class="referral-heading"><span class="referral-symbol">↗</span><div><small>GROW YOUR KITCHEN</small><h2>Invite a friend</h2></div></div><p>Referral invitations and rewards will appear here once the secure game server supports Telegram invite links.</p><div class="referral-status">Referral tracking is not active yet</div><small class="referral-note">The current server only loads and saves game progress. It cannot verify an invite or award dumplings yet.</small></div>
       <p class="fine-print">Task claims sync with your save. The current save API does not provide server-side reward validation.</p>
     </section>

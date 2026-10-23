@@ -82,3 +82,28 @@ test('invalid or backwards UTC dates cannot increase a streak', () => {
   assert.equal(rules.validUtcDay('2026-02-30'), false);
   assert.deepEqual(rules.advanceStreak(5, 8, '2026-10-24', '2026-10-23'), { current: 5, best: 8, lastVisit: '2026-10-24', changed: false });
 });
+
+test('daily streak calendar shows a single available reward and future days', () => {
+  assert.equal(rules.streakCalendar(rules.STREAK_REWARD_SCHEDULE, 0, '2026-10-22')[0].status, 'available');
+  const calendar = rules.streakCalendar(rules.STREAK_REWARD_SCHEDULE, 3, '2026-10-22');
+  assert.equal(calendar.length, 7);
+  assert.equal(calendar[0].status, 'missed');
+  assert.equal(calendar[2].status, 'available');
+  assert.ok(calendar.slice(3).every(day => day.status === 'future'));
+  assert.equal(calendar[2].key, '2026-10-22:0:3');
+});
+
+test('streak claims remain recorded by cycle and do not reappear as available', () => {
+  const key = rules.streakRewardKey('2026-10-22', 1, 2);
+  const calendar = rules.streakCalendar(rules.STREAK_REWARD_SCHEDULE, 9, '2026-10-22', [key]);
+  assert.equal(calendar[1].status, 'received');
+  assert.equal(calendar.filter(day => day.status === 'available').length, 0);
+  assert.equal(calendar[2].status, 'future');
+  assert.deepEqual(rules.streakCalendar([], 1, '2026-10-22'), []);
+});
+
+test('legacy streak saves infer the beginning of the active run from its length', () => {
+  assert.equal(rules.inferStreakStartDate(5, '2026-10-24'), '2026-10-20');
+  assert.equal(rules.inferStreakStartDate(0, '2026-10-24'), null);
+  assert.equal(rules.inferStreakStartDate(5, 'invalid'), null);
+});

@@ -2,6 +2,15 @@
   const BASE_COOK_MS = 10 * 1000;
   const LEVEL_THRESHOLDS = [0, 500, 1000, 1500, 2000, 3000, 4000, 5500, 7500, 10000];
   const DAILY_TASK_REWARDS = { login: 5, cook: 10, upgrade: 15 };
+  const STREAK_REWARD_SCHEDULE = [
+    { id: 'streak-day-1', day: 1, type: 'dumplings', amount: 2, title: 'First day', description: 'A small kitchen welcome.' },
+    { id: 'streak-day-2', day: 2, type: 'dumplings', amount: 2, title: 'Second serving', description: 'Keep your daily rhythm.' },
+    { id: 'streak-day-3', day: 3, type: 'dumplings', amount: 3, title: 'Three-day simmer', description: 'A little bonus for returning.' },
+    { id: 'streak-day-4', day: 4, type: 'dumplings', amount: 3, title: 'Steady chef', description: 'Your kitchen is warming up.' },
+    { id: 'streak-day-5', day: 5, type: 'dumplings', amount: 4, title: 'Five-day rhythm', description: 'A small extra for consistency.' },
+    { id: 'streak-day-6', day: 6, type: 'dumplings', amount: 4, title: 'Almost a week', description: 'One more day to complete the week.' },
+    { id: 'streak-day-7', day: 7, type: 'dumplings', amount: 5, title: 'A full week', description: 'The weekly kitchen bonus.' }
+  ];
   const UPGRADE_DEFINITIONS = [
     { id: 'good-stove', name: 'A Better Stove', description: 'Cook each batch 5% faster per level.', baseCost: 100, maxLevel: 10, effect: level => `${level * 5}% faster` },
     { id: 'large-pot', name: 'A Bigger Pot', description: 'Add one dumpling to every batch per level.', baseCost: 150, maxLevel: 10, effect: level => `+${level} dumplings / batch` },
@@ -66,8 +75,30 @@
     const next = elapsedDays === 1 ? safeCurrent + 1 : 1;
     return { current: next, best: Math.max(safeBest, next), lastVisit: today, changed: true };
   }
+  function streakRewardKey(runStartedDate, cycle, day) {
+    if (!validUtcDay(runStartedDate) || !Number.isSafeInteger(cycle) || cycle < 0 || !Number.isSafeInteger(day) || day < 1 || day > 7) return null;
+    return `${runStartedDate}:${cycle}:${day}`;
+  }
+  function inferStreakStartDate(streakLength, lastVisitDate) {
+    if (!Number.isSafeInteger(streakLength) || streakLength < 1 || !validUtcDay(lastVisitDate)) return null;
+    const start = new Date(`${lastVisitDate}T00:00:00.000Z`);
+    start.setUTCDate(start.getUTCDate() - Math.min(streakLength - 1, 36_500));
+    return start.toISOString().slice(0, 10);
+  }
+  function streakCalendar(schedule, streakLength, runStartedDate, claimedKeys = []) {
+    if (!Array.isArray(schedule) || !Number.isSafeInteger(streakLength) || streakLength < 0) return [];
+    if (schedule.length === 0) return [];
+    const cycle = streakLength === 0 ? 0 : Math.floor((streakLength - 1) / schedule.length);
+    const currentDay = streakLength === 0 ? 1 : ((streakLength - 1) % schedule.length) + 1;
+    const claimed = new Set(Array.isArray(claimedKeys) ? claimedKeys : []);
+    return schedule.map(reward => {
+      const key = streakRewardKey(runStartedDate, cycle, reward.day);
+      const status = key && claimed.has(key) ? 'received' : reward.day < currentDay ? 'missed' : reward.day === currentDay ? 'available' : 'future';
+      return { ...reward, key, status };
+    });
+  }
 
-  const rules = { BASE_COOK_MS, LEVEL_THRESHOLDS, DAILY_TASK_REWARDS, UPGRADE_DEFINITIONS, DECORATION_DEFINITIONS, upgradeCost, playerLevel, levelReward, kitchenLevel, cookDuration, upgradePurchaseQuote, batchDumplingReward, batchDumplingRange, taskClaimAllowed, validUtcDay, advanceStreak };
+  const rules = { BASE_COOK_MS, LEVEL_THRESHOLDS, DAILY_TASK_REWARDS, STREAK_REWARD_SCHEDULE, UPGRADE_DEFINITIONS, DECORATION_DEFINITIONS, upgradeCost, playerLevel, levelReward, kitchenLevel, cookDuration, upgradePurchaseQuote, batchDumplingReward, batchDumplingRange, taskClaimAllowed, validUtcDay, advanceStreak, streakRewardKey, inferStreakStartDate, streakCalendar };
   if (typeof module !== 'undefined' && module.exports) module.exports = rules;
   else root.PelmeniRules = rules;
 })(globalThis);

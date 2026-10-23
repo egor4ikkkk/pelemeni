@@ -18,7 +18,7 @@
     activeBatches: [], upgrades: [], equipped: [], upgradeLevels: {}, taskDay: nowDay(), taskBatches: 0,
     taskClaimedOn: null, taskBalanceRewardVersion: 1, referralCode: null, dailyDate: nowDay(),
     dailyTasks: emptyDailyTasks(), loginRewardDate: null, firstLoginNoReward: false, lifetimeDumplings: 0, levelClaims: [], achievements: [],
-    streakCurrent: 0, streakBest: 0, streakLastVisitDate: null, taskPotsUsed: [], potCollections: { 1: 0, 2: 0 },
+    streakCurrent: 0, streakBest: 0, streakLastVisitDate: null, streakRunStartedDate: null, streakRewardClaims: [], taskPotsUsed: [], potCollections: { 1: 0, 2: 0 },
     joinedAt: null, lastBatchReward: null, lastBatchAt: null
   });
   const appShell = $('appShell');
@@ -84,6 +84,8 @@
       dailyTasks, loginRewardDate: typeof saved.loginRewardDate === 'string' ? saved.loginRewardDate : null,
       streakCurrent: safeInt(saved.streakCurrent), streakBest: Math.max(safeInt(saved.streakBest), safeInt(saved.streakCurrent)),
       streakLastVisitDate: rules.validUtcDay(saved.streakLastVisitDate) ? saved.streakLastVisitDate : null,
+      streakRunStartedDate: rules.validUtcDay(saved.streakRunStartedDate) ? saved.streakRunStartedDate : rules.inferStreakStartDate(safeInt(saved.streakCurrent), saved.streakLastVisitDate),
+      streakRewardClaims: Array.isArray(saved.streakRewardClaims) ? [...new Set(saved.streakRewardClaims.filter(key => typeof key === 'string' && /^\d{4}-\d{2}-\d{2}:\d+:\d+$/.test(key) && rules.validUtcDay(key.split(':')[0])))] : [],
       taskPotsUsed: Array.isArray(saved.taskPotsUsed) ? [...new Set(saved.taskPotsUsed.filter(pot => pot === 1 || pot === 2))] : [],
       potCollections: { 1: safeInt(saved.potCollections?.[1]), 2: safeInt(saved.potCollections?.[2]) },
       firstLoginNoReward: saved.firstLoginNoReward === true,
@@ -124,9 +126,9 @@
       referralCode: state.referralCode, dailyDate: state.dailyDate, dailyTasks: JSON.parse(JSON.stringify(state.dailyTasks)),
       loginRewardDate: state.loginRewardDate, firstLoginNoReward: state.firstLoginNoReward,
       streakCurrent: state.streakCurrent, streakBest: state.streakBest, streakLastVisitDate: state.streakLastVisitDate,
-      taskPotsUsed: [...state.taskPotsUsed], potCollections: { ...state.potCollections },
+      streakRunStartedDate: state.streakRunStartedDate, streakRewardClaims: [...state.streakRewardClaims], taskPotsUsed: [...state.taskPotsUsed], potCollections: { ...state.potCollections },
       achievements: [...state.achievements], joinedAt: state.joinedAt, lastBatchReward: state.lastBatchReward,
-      lastBatchAt: state.lastBatchAt, schemaVersion: 5
+      lastBatchAt: state.lastBatchAt, schemaVersion: 6
     };
   }
   function saveLocalState() {
@@ -248,13 +250,13 @@
     const today = nowDay();
     if (rules.validUtcDay(state.dailyDate) && today < state.dailyDate) return;
     const previousStreakDate = state.streakLastVisitDate;
+    const elapsedVisitDays = rules.validUtcDay(previousStreakDate) ? (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${previousStreakDate}T00:00:00Z`)) / 86_400_000 : null;
     const streak = rules.advanceStreak(state.streakCurrent, state.streakBest, previousStreakDate, today);
     state.streakCurrent = streak.current;
     state.streakBest = streak.best;
     state.streakLastVisitDate = streak.lastVisit;
-    if (streak.changed && [3, 7, 14, 30].includes(streak.current) && previousStreakDate !== today) {
-      setTimeout(() => toast(`${streak.current}-day streak badge unlocked!`), 2600);
-    }
+    if (streak.changed && (!previousStreakDate || elapsedVisitDays > 1)) state.streakRunStartedDate = today;
+    state.streakRunStartedDate ||= streak.lastVisit;
     const firstVisit = !state.joinedAt && state.batches === 0 && state.balance === 0 && state.upgrades.length === 0 && totalUpgradeLevels() === 0;
     if (state.dailyDate !== today) {
       state.dailyDate = today;
@@ -353,11 +355,21 @@
   function renderDailyTasks() {
     const firstVisitToday = state.firstLoginNoReward && state.loginRewardDate === nowDay();
     const clockBehind = rules.validUtcDay(state.dailyDate) && nowDay() < state.dailyDate;
-    const streakMilestones = [3, 7, 14, 30];
-    const nextStreakMilestone = streakMilestones.find(day => day > state.streakCurrent) || null;
     const loginStatus = clockBehind ? 'Device date is earlier than your last saved game day; no new visit was counted.' : firstVisitToday ? 'Welcome badge received. The first visit has no login dumpling reward.' : `Today's +${rules.DAILY_TASK_REWARDS.login} dumplings were added automatically.`;
-    const milestoneStatus = nextStreakMilestone ? `${nextStreakMilestone}-day badge in ${nextStreakMilestone - state.streakCurrent} ${nextStreakMilestone - state.streakCurrent === 1 ? 'day' : 'days'}` : 'All streak badges earned';
-    $('streakSummary').innerHTML = `<div class="streak-flame" aria-hidden="true">✦</div><div class="streak-copy"><span class="task-tag">DAILY STREAK · UTC</span><strong>${state.streakCurrent} ${state.streakCurrent === 1 ? 'day' : 'days'} <small>· best ${state.streakBest}</small></strong><p>${loginStatus}</p><small>${milestoneStatus}</small></div><span class="streak-check" aria-label="${clockBehind ? 'Visit not counted because device date is behind saved game date' : 'Today’s visit recorded'}">${clockBehind ? '!' : '✓'}</span>`;
+    const cycleLength = rules.STREAK_REWARD_SCHEDULE.length;
+    const dayInCycle = state.streakCurrent ? ((state.streakCurrent - 1) % cycleLength) + 1 : 0;
+    const nextDay = dayInCycle >= cycleLength ? 1 : Math.max(1, dayInCycle + 1);
+    const daysToNext = state.streakCurrent ? (dayInCycle >= cycleLength ? 1 : nextDay - dayInCycle) : 1;
+    const nextReward = rules.STREAK_REWARD_SCHEDULE.find(reward => reward.day === nextDay);
+    const nextStatus = dayInCycle === 0 ? 'Your first daily reward is ready to view.' : `Next: Day ${nextDay} in ${daysToNext} ${daysToNext === 1 ? 'day' : 'days'}${nextReward ? ` · +${nextReward.amount} dumplings` : ''}.`;
+    $('streakSummary').innerHTML = `<div class="streak-flame" aria-hidden="true">✦</div><div class="streak-copy"><span class="task-tag">DAILY STREAK · UTC</span><strong>${state.streakCurrent} ${state.streakCurrent === 1 ? 'day' : 'days'} <small>· best ${state.streakBest}</small></strong><p>${loginStatus}</p><small>${nextStatus}</small></div><span class="streak-check" aria-label="${clockBehind ? 'Visit not counted because device date is behind saved game date' : 'Today’s visit recorded'}">${clockBehind ? '!' : '✓'}</span>`;
+    const calendarDays = rules.streakCalendar(rules.STREAK_REWARD_SCHEDULE, state.streakCurrent, state.streakRunStartedDate, state.streakRewardClaims);
+    $('streakCalendar').innerHTML = calendarDays.map(reward => {
+      const statusLabel = { received: 'Received', available: 'Available today', future: 'Coming up', missed: 'Missed' }[reward.status];
+      const actionLabel = reward.status === 'available' ? 'Claim paused' : statusLabel;
+      return `<article class="streak-day streak-day-${reward.status}"><span class="streak-day-number">DAY ${reward.day}</span><span class="streak-day-icon" aria-hidden="true">✦</span><strong>+${reward.amount}</strong><small>dumplings</small><span class="streak-day-status">${statusLabel}</span><button type="button" class="streak-day-claim" disabled aria-label="${statusLabel}: ${reward.amount} dumplings. Claims paused until server support is available">${actionLabel}</button></article>`;
+    }).join('');
+    $('streakCycleLabel').textContent = `Day ${dayInCycle || 1} of ${cycleLength}`;
     const tasks = [
       { id:'login', title:'Visit the kitchen', description:'Your daily login reward is added automatically.', reward:firstVisitToday ? 0 : rules.DAILY_TASK_REWARDS.login, progress:state.dailyTasks.login.progress, claimed:state.dailyTasks.login.claimed, goal:1, auto:true },
       { id:'cook', title:'Start a batch', description:'Put a pot of dumplings on the stove.', reward:rules.DAILY_TASK_REWARDS.cook, progress:state.dailyTasks.cook.progress, claimed:state.dailyTasks.cook.claimed, goal:1 },

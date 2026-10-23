@@ -120,11 +120,11 @@ body[data-theme="light"] :focus-visible{outline-color:#087bad}
 /* Each vessel follows its own cooking state: closed while heating, open when ready. */
 .main-pot .dumplings,.second-pot-art .dumplings{opacity:0;transition:opacity .25s ease}
 .main-pot .steam-svg,.second-pot-art .steam-svg{opacity:0;animation:none;transition:opacity .25s ease}
-.steam-stream{opacity:0}
+.steam-stream{opacity:0;transition:opacity .2s ease}
 .main-pot .pot-lid,.second-pot-art .pot-lid{visibility:hidden;opacity:0;pointer-events:none;transform-box:fill-box;transform-origin:center bottom;will-change:transform}
 .pot-one-ready .main-pot .dumplings,.pot-two-ready .second-pot-art .dumplings{opacity:1}
 .pot-one-ready .main-pot .steam-svg,.pot-two-ready .second-pot-art .steam-svg{opacity:1;filter:drop-shadow(0 0 5px #bfeaff)}
-.pot-one-ready .main-pot .steam-stream,.pot-two-ready .second-pot-art .steam-stream{animation:steamWisp 1.9s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.pot-one-ready .main-pot .steam-stream,.pot-two-ready .second-pot-art .steam-stream{opacity:.52;animation:steamWisp 1.9s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
 .pot-one-ready .main-pot .steam-stream-two,.pot-two-ready .second-pot-art .steam-stream-two{animation-delay:-.63s}
 .pot-one-ready .main-pot .steam-stream-three,.pot-two-ready .second-pot-art .steam-stream-three{animation-delay:-1.26s}
 .pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid{visibility:visible;opacity:1}
@@ -169,3 +169,28 @@ body[data-theme="light"] .upgrade-card.equipped .upgrade-button{background:#e8f7
 body[data-theme="light"] .streak-card{background:linear-gradient(110deg,#f5fbfe,#eaf3f7);border-color:#bfd2dd;color:#19364b;box-shadow:0 4px 12px #17364a0d}
 body[data-theme="light"] .streak-copy>strong{color:#19364b}body[data-theme="light"] .streak-copy p{color:#4d6475}body[data-theme="light"] .streak-copy>strong small,body[data-theme="light"] .streak-copy>small:last-child{color:#536e80}body[data-theme="light"] .streak-flame{background:#e4f0f6;color:#805300}body[data-theme="light"] .streak-check{background:#e0f2e8;color:#226b48}body[data-theme="light"] .achievement-progress{color:#52697a}
 @media(max-width:380px){.streak-card{gap:8px;padding:10px}.streak-flame{width:33px;height:33px}.streak-copy p{font-size:8px}}
+
+.streak-calendar-panel{margin:0 0 12px;padding:13px;border:1px solid #244866;border-radius:16px;background:linear-gradient(145deg,#102d49,#0c2239)}
+.streak-calendar-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.streak-calendar-heading h2{margin:3px 0 0;font-family:Nunito,system-ui,sans-serif;font-size:15px}
+.streak-calendar-cycle{padding:5px 8px;border:1px solid #315978;border-radius:9px;color:#a9c6d9;font-size:8px;font-weight:800;white-space:nowrap}
+.streak-calendar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.streak-day{min-width:0;display:flex;flex-direction:column;align-items:center;padding:8px 4px 7px;border:1px solid #254761;border-radius:12px;background:#0b2035;text-align:center;transition:border-color .2s,transform .2s}
+.streak-day-number{font-size:7px;letter-spacing:.7px;color:#8daec4;font-weight:900}
+.streak-day-icon{width:24px;height:24px;display:grid;place-items:center;margin:4px 0 2px;border-radius:8px;background:#183b57;color:#9fc8e0;font-size:14px}
+.streak-day>strong{font-size:13px;color:#dceaf3;line-height:15px}.streak-day>small{font-size:7px;color:#91abc0}
+.streak-day-status{min-height:17px;margin-top:5px;color:#91abc0;font-size:7px;line-height:1.2}
+.streak-day-claim{width:100%;min-height:23px;padding:3px 2px;border:1px solid #31516a;border-radius:7px;background:#152d42;color:#9fb4c5;font-size:7px;font-weight:800}
+.streak-day-claim:disabled{opacity:.82;cursor:not-allowed}
+.streak-day-received{border-color:#347857;background:linear-gradient(155deg,#123c37,#102c33)}.streak-day-received .streak-day-icon{background:#1b5646;color:#8ce0b3}.streak-day-received .streak-day-status{color:#8ce0b3}
+.streak-day-available{border-color:#e6ad3f;background:linear-gradient(155deg,#3d321e,#182a38);box-shadow:0 0 14px #e5ad3f22}.streak-day-available .streak-day-icon{background:#5a4826;color:#ffd36c}.streak-day-available>strong{color:#ffda83}.streak-day-available .streak-day-status{color:#ffda83}.streak-day-available .streak-day-claim{border-color:#8b692e;background:#3d3528;color:#f2d189}
+.streak-day-future{opacity:.72}.streak-day-missed{border-color:#4f3b43;background:#281f2c}.streak-day-missed .streak-day-icon{background:#45333d;color:#bd9eaa}.streak-day-missed .streak-day-status{color:#c2a9b2}
+.streak-claim-note{margin:9px 1px 0;color:#a7bac8;font-size:8px;line-height:1.45}
+body[data-theme="light"] .streak-calendar-panel{background:linear-gradient(145deg,#f7fbfd,#edf4f7);border-color:#bfd2dd;box-shadow:0 4px 12px #17364a0d}
+body[data-theme="light"] .streak-calendar-heading h2{color:#19364b}body[data-theme="light"] .streak-calendar-cycle{border-color:#bfd2dd;color:#4e687a;background:#fff}
+body[data-theme="light"] .streak-day{border-color:#cfdee5;background:#fff}.streak-day-number{color:#536e80}body[data-theme="light"] .streak-day-icon{background:#eaf2f6;color:#476b80}body[data-theme="light"] .streak-day>strong{color:#19364b}body[data-theme="light"] .streak-day>small{color:#536e80}body[data-theme="light"] .streak-day-status{color:#536e80}body[data-theme="light"] .streak-day-claim{border-color:#c4d3dc;background:#f1f5f7;color:#536879}
+body[data-theme="light"] .streak-day-received{border-color:#82bea0;background:#eef9f2}body[data-theme="light"] .streak-day-received .streak-day-icon{background:#d9f0e2;color:#286748}body[data-theme="light"] .streak-day-received .streak-day-status{color:#286748}
+body[data-theme="light"] .streak-day-available{border-color:#d9a43d;background:#fff8e7;box-shadow:0 0 12px #c58d1e20}body[data-theme="light"] .streak-day-available .streak-day-icon{background:#ffedbf;color:#805400}body[data-theme="light"] .streak-day-available>strong,body[data-theme="light"] .streak-day-available .streak-day-status{color:#744c00}body[data-theme="light"] .streak-day-available .streak-day-claim{border-color:#d2a342;background:#fff2cd;color:#744c00}
+body[data-theme="light"] .streak-day-future{opacity:.72}body[data-theme="light"] .streak-day-missed{border-color:#d9c7cd;background:#f7f1f3}body[data-theme="light"] .streak-day-missed .streak-day-icon{background:#eee1e5;color:#806471}body[data-theme="light"] .streak-day-missed .streak-day-status{color:#806471}body[data-theme="light"] .streak-claim-note{color:#536e80}
+@media(max-width:350px){.streak-calendar{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.pot-one-ready .main-pot .steam-stream,.pot-two-ready .second-pot-art .steam-stream{animation:none;transform:none;opacity:.62}.streak-day{transition:none}}
