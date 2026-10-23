@@ -25,7 +25,6 @@ body[data-theme="light"]{--bg:#f1f6fa;--panel:#fff;--panel2:#e8f0f6;--line:#cfda
 body[data-theme="light"] .brand{color:#18354c}body[data-theme="light"] .app-shell{background:#f1f6fa}body[data-theme="light"] .sync-status,body[data-theme="light"] .balance-pill,body[data-theme="light"] .upgrade-balance,body[data-theme="light"] .active-batch,body[data-theme="light"] .task-card,body[data-theme="light"] .upgrade-card,body[data-theme="light"] .profile-card,body[data-theme="light"] .achievement-card,body[data-theme="light"] .note-card{background:#fff;color:#18354c;border-color:#d4e0e8}body[data-theme="light"] .theme-toggle{background:#fff;color:#18354c;border-color:#d4e0e8}body[data-theme="light"] .referral-status{background:#fff8e7;color:#795214;border-color:#e4c57f}
 body[data-theme="light"] .game-card{background:#fff;border-color:#cbdce7}body[data-theme="light"] .cook-panel{color:#18354c}body[data-theme="light"] .cook-state,body[data-theme="light"] .task-copy p,body[data-theme="light"] .page-heading p,body[data-theme="light"] .upgrade-copy p,body[data-theme="light"] .profile-caption{color:#5f7688}body[data-theme="light"] .bottom-nav{background:#f8fbfdf2;border-color:#d1dee7}body[data-theme="light"] .season-banner{background:#e7f1f7;border-color:#d0dfe8}body[data-theme="light"] .season-banner strong{color:#24425a}body[data-theme="light"] .upgrade-balance{color:#52697b}body[data-theme="light"] .achievement-card p{color:#60788b}
 @media(max-width:380px){.app-shell{padding-left:12px;padding-right:12px}.welcome-row h1{font-size:23px}.balance-pill{padding:5px 7px}.upgrade-card{gap:8px;padding:10px}.upgrade-art{width:41px;height:41px}.task-card{padding:11px;gap:8px}.task-reward{min-width:64px}.sync-status{font-size:7px}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 body:not([data-theme="light"]){background:radial-gradient(ellipse at 52% -15%,#16456c 0,transparent 52%),#07182c}
 .kitchen-art{height:320px;background:radial-gradient(ellipse at 50% 70%,#785033 0,#422e24 23%,#16283a 54%,#0c2137 100%)}
 .kitchen-svg{height:316px}
@@ -118,17 +117,18 @@ body[data-theme="light"] .nav-item{color:#526b7b}
 body[data-theme="light"] .nav-item.selected{color:#805400}
 body[data-theme="light"] .toast{background:#183449;color:#fff}
 body[data-theme="light"] :focus-visible{outline-color:#087bad}
-/* Cooking scene states: reveal food and steam only when a batch is ready. */
-.dumplings{opacity:0;transition:opacity .25s ease}
-.ready .dumplings{opacity:1}
-.steam-svg{opacity:0;animation:none;transition:opacity .25s ease}
-.ready .steam-svg{opacity:.82;animation:softSteam 2.2s ease-in-out infinite}
-.pot-lid{opacity:0;transform-origin:210px 190px;pointer-events:none}
-.cooking:not(.ready) .pot-lid{opacity:1;animation:boilLid .22s ease-in-out infinite alternate}
+/* Each vessel follows its own cooking state: closed while heating, open when ready. */
+.main-pot .dumplings,.second-pot-art .dumplings{opacity:0;transition:opacity .25s ease}
+.main-pot .steam-svg,.second-pot-art .steam-svg{opacity:0;animation:none;transition:opacity .25s ease}
+.main-pot .pot-lid,.second-pot-art .pot-lid{visibility:hidden;opacity:0;pointer-events:none;transform-box:fill-box;transform-origin:center bottom}
+.pot-one-ready .main-pot .dumplings,.pot-two-ready .second-pot-art .dumplings{opacity:1}
+.pot-one-ready .main-pot .steam-svg,.pot-two-ready .second-pot-art .steam-svg{opacity:.82;animation:softSteam 2.2s ease-in-out infinite}
+.pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid{visibility:visible;opacity:1;animation:lidBoil .42s ease-in-out infinite alternate}
+.pot-one-cooking .main-pot,.pot-two-cooking .second-pot-art{animation:potBoil .14s linear infinite}
 .decor-herbs .flower-bloom{filter:drop-shadow(0 1px 2px #34204199)}
-@keyframes boilLid{from{transform:translateY(0) rotate(-1deg)}to{transform:translateY(-3px) rotate(1deg)}}
+@keyframes lidBoil{0%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-4px) rotate(1.5deg)}100%{transform:translateY(-1px) rotate(-1deg)}}
+@keyframes potBoil{0%,100%{translate:0 0}25%{translate:-1.5px -1px}50%{translate:1.5px 0}75%{translate:-1px 1px}}
 @keyframes softSteam{0%,100%{transform:translateY(4px);opacity:.42}50%{transform:translateY(-7px);opacity:.9}}
-@media(prefers-reduced-motion:reduce){.cooking:not(.ready) .pot-lid,.ready .steam-svg{animation:none}}
 /* The second purchase adds a real, separately animated pot and matching controls. */
 .second-pot-art{opacity:0;pointer-events:none;transform-origin:210px 220px;transition:opacity .28s ease}
 .second-pot-unlocked .main-pot{transform:translate(-95px,8px) scale(.6);transform-origin:210px 220px;transition:transform .32s ease}
@@ -139,13 +139,6 @@ body[data-theme="light"] :focus-visible{outline-color:#087bad}
 .cook-actions.two-pots .primary-button{min-width:0;height:49px;padding:0 8px;font-size:11px}
 .cook-actions.two-pots .button-arrow{right:8px;font-size:16px}
 .cook-actions.two-pots .primary-button span:first-child{max-width:calc(100% - 15px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.main-pot .dumplings,.main-pot .steam-svg,.second-pot-art .dumplings,.second-pot-art .steam-svg{opacity:0!important}
-.pot-one-ready .main-pot .dumplings,.pot-two-ready .second-pot-art .dumplings{opacity:1!important}
-.pot-one-ready .main-pot .steam-svg,.pot-two-ready .second-pot-art .steam-svg{opacity:.82!important;animation:softSteam 2.2s ease-in-out infinite}
-.pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid{opacity:1!important;animation:boilLid .22s ease-in-out infinite alternate}
-.second-pot-lid,.main-pot .pot-lid{opacity:0;pointer-events:none}
-@media(prefers-reduced-motion:reduce){.pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid,.pot-one-ready .main-pot .steam-svg,.pot-two-ready .second-pot-art .steam-svg{animation:none}}
-.kitchen-art:not(.pot-one-cooking) .main-pot .pot-lid,.kitchen-art:not(.pot-two-cooking) .second-pot-art .pot-lid{opacity:0!important;animation:none!important}
 
 .burner ellipse:first-child{filter:drop-shadow(0 4px 4px #05091399)}
 .burner circle{animation:burnerGlow 1.8s ease-in-out infinite alternate}

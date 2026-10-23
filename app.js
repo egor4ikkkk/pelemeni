@@ -341,6 +341,19 @@
       const isCooking = Boolean(batch && !isReady);
       art.classList.toggle(`pot-${pot}-cooking`, isCooking);
       art.classList.toggle(`pot-${pot}-ready`, isReady);
+      const potArt = art.querySelector(pot === 1 ? '.main-pot' : '.second-pot-art');
+      const lid = potArt?.querySelector('.pot-lid');
+      const dumplings = potArt?.querySelector('.dumplings');
+      const steam = potArt?.querySelector('.steam-svg');
+      if (lid) {
+        lid.style.visibility = isCooking ? 'visible' : 'hidden';
+        lid.style.opacity = isCooking ? '1' : '0';
+      }
+      if (dumplings) {
+        dumplings.style.visibility = isReady ? 'visible' : 'hidden';
+        dumplings.style.opacity = isReady ? '1' : '0';
+      }
+      if (steam) steam.style.visibility = isReady ? 'visible' : 'hidden';
       const button = pot === 1 ? $('cookButton') : $('cookButton2');
       const label = pot === 1 ? $('buttonText') : $('buttonText2');
       if (pot === 2) button.hidden = !secondUnlocked;
