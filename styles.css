@@ -194,3 +194,15 @@ body[data-theme="light"] .streak-day-available{border-color:#d9a43d;background:#
 body[data-theme="light"] .streak-day-future{opacity:.72}body[data-theme="light"] .streak-day-missed{border-color:#d9c7cd;background:#f7f1f3}body[data-theme="light"] .streak-day-missed .streak-day-icon{background:#eee1e5;color:#806471}body[data-theme="light"] .streak-day-missed .streak-day-status{color:#806471}body[data-theme="light"] .streak-claim-note{color:#536e80}
 @media(max-width:350px){.streak-calendar{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.pot-one-ready .main-pot .steam-stream,.pot-two-ready .second-pot-art .steam-stream{animation:none;transform:none;opacity:.62}.streak-day{transition:none}}
+
+/* Prevent accidental browser zoom while keeping vertical scrolling and taps available. */
+html,
+body{
+  touch-action:pan-y;
+  overscroll-behavior:none;
+}
+button,
+a,
+[role="button"]{
+  touch-action:manipulation;
+}
