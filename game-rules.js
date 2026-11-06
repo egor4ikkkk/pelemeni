@@ -1,18 +1,10 @@
 ((root) => {
-  const BASE_COOK_MS = 10 * 1000;
+  const BASE_COOK_MS = 12 * 60 * 60 * 1000;
+  const STOVE_LEVEL_COSTS = [15, 20, 30, 40, 55, 70, 90, 115, 145, 180];
   const LEVEL_THRESHOLDS = [0, 500, 1000, 1500, 2000, 3000, 4000, 5500, 7500, 10000];
-  const DAILY_TASK_REWARDS = { login: 5, cook: 10, upgrade: 15 };
-  const STREAK_REWARD_SCHEDULE = [
-    { id: 'streak-day-1', day: 1, type: 'dumplings', amount: 2, title: 'First day', description: 'A small kitchen welcome.' },
-    { id: 'streak-day-2', day: 2, type: 'dumplings', amount: 2, title: 'Second serving', description: 'Keep your daily rhythm.' },
-    { id: 'streak-day-3', day: 3, type: 'dumplings', amount: 3, title: 'Three-day simmer', description: 'A little bonus for returning.' },
-    { id: 'streak-day-4', day: 4, type: 'dumplings', amount: 3, title: 'Steady chef', description: 'Your kitchen is warming up.' },
-    { id: 'streak-day-5', day: 5, type: 'dumplings', amount: 4, title: 'Five-day rhythm', description: 'A small extra for consistency.' },
-    { id: 'streak-day-6', day: 6, type: 'dumplings', amount: 4, title: 'Almost a week', description: 'One more day to complete the week.' },
-    { id: 'streak-day-7', day: 7, type: 'dumplings', amount: 5, title: 'A full week', description: 'The weekly kitchen bonus.' }
-  ];
+  const DAILY_TASK_REWARDS = { cook: 10, upgrade: 15 };
   const UPGRADE_DEFINITIONS = [
-    { id: 'good-stove', name: 'A Better Stove', description: 'Cook each batch 5% faster per level.', baseCost: 100, maxLevel: 10, effect: level => `${level * 5}% faster` },
+    { id: 'good-stove', name: 'A Better Stove', description: 'Cook each batch 5% faster per level.', baseCost: 100, maxLevel: 10, levelCosts: STOVE_LEVEL_COSTS, effect: level => `${level * 5}% faster` },
     { id: 'large-pot', name: 'A Bigger Pot', description: 'Add one dumpling to every batch per level.', baseCost: 150, maxLevel: 10, effect: level => `+${level} dumplings / batch` },
     { id: 'grandma-recipe', name: "Grandma's Recipe", description: 'Increase the base batch reward by 5% per level.', baseCost: 200, maxLevel: 10, effect: level => `+${level * 5}% batch reward` }
   ];
@@ -21,6 +13,7 @@
   ];
 
   function upgradeCost(definition, currentLevel) {
+    if (Array.isArray(definition.levelCosts) && Number.isSafeInteger(definition.levelCosts[currentLevel])) return definition.levelCosts[currentLevel];
     if (currentLevel === 0 && Number.isSafeInteger(definition.temporaryCost)) return definition.temporaryCost;
     return Math.round(definition.baseCost * Math.pow(1.5, currentLevel) / 1.5);
   }
@@ -30,6 +23,44 @@
     return level;
   }
   function levelReward(level) { return 10 + Math.max(0, level - 2) * 5; }
+  function streakRewardAmount(streakDay) {
+    if (!Number.isSafeInteger(streakDay) || streakDay < 1) return 0;
+    return Math.min(10, Math.floor(streakDay / 2) + 1);
+  }
+  function streakVisitKey(day) { return validUtcDay(day) ? `${day}:0:0` : null; }
+  function streakClaimKey(day) { return validUtcDay(day) ? `${day}:0:1` : null; }
+  function canClaimStreakReward(visitDate, claims, today) {
+    const key = streakClaimKey(today);
+    return Boolean(key && visitDate === today && Array.isArray(claims) && !claims.includes(key));
+  }
+  function prepareStreakRewardClaim(state, today) {
+    if (!state || state.dailyDate !== today || !canClaimStreakReward(state.streakLastVisitDate, state.streakRewardClaims, today)) return null;
+    return {
+      amount: streakRewardAmount(state.streakCurrent),
+      loginRewardDate: today,
+      streakRewardClaims: recordStreakRewardClaim(state.streakRewardClaims, today)
+    };
+  }
+  function recordStreakRewardClaim(claims, today) {
+    const key = streakClaimKey(today);
+    return key ? [...new Set([...(Array.isArray(claims) ? claims : []), key])] : [...(Array.isArray(claims) ? claims : [])];
+  }
+  function recordStreakVisit(claims, today) {
+    const key = streakVisitKey(today);
+    return key ? [...new Set([...(Array.isArray(claims) ? claims : []), key])] : [...(Array.isArray(claims) ? claims : [])];
+  }
+  function normalizeStreakRewardClaims(claims, loginRewardDate, firstLoginNoReward, today) {
+    const validClaims = Array.isArray(claims)
+      ? [...new Set(claims.filter(key => typeof key === 'string' && /^\d{4}-\d{2}-\d{2}:\d+:\d+$/.test(key) && validUtcDay(key.split(':')[0])))]
+      : [];
+    // Before manual claims existed, loginRewardDate meant the automatic reward
+    // had already been paid. New visit markers distinguish the new protocol.
+    const hasNewVisitMarker = validClaims.includes(streakVisitKey(today));
+    const hasClaimMarker = validClaims.includes(streakClaimKey(today));
+    return loginRewardDate === today && !hasNewVisitMarker && !hasClaimMarker && firstLoginNoReward !== true
+      ? recordStreakRewardClaim(validClaims, today)
+      : validClaims;
+  }
   function kitchenLevel(levels) {
     const total = Object.values(levels || {}).reduce((sum, level) => sum + (Number.isSafeInteger(level) && level > 0 ? level : 0), 0);
     return 1 + Math.floor(total / 2);
@@ -37,7 +68,7 @@
   function cookDuration(levels, legacySecondsOff = 0) {
     const stoveLevel = Math.max(0, Math.min(10, Number.isSafeInteger(levels?.['good-stove']) ? levels['good-stove'] : 0));
     const reduction = Math.min(0.5, stoveLevel * 0.05);
-    return Math.max(4 * 1000, Math.round(BASE_COOK_MS * (1 - reduction)) - Math.max(0, legacySecondsOff) * 1000);
+    return Math.round(BASE_COOK_MS * (1 - reduction));
   }
   function upgradePurchaseQuote(state, definition) {
     const level = Math.max(0, Math.min(definition.maxLevel, Number.isSafeInteger(state?.upgradeLevels?.[definition.id]) ? state.upgradeLevels[definition.id] : 0));
@@ -64,6 +95,13 @@
     const date = new Date(`${day}T00:00:00.000Z`);
     return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === day;
   }
+  function utcMidnightCountdown(nowMs) {
+    if (!Number.isFinite(nowMs)) return '00:00';
+    const now = new Date(nowMs);
+    const nextUtcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+    const minutesLeft = Math.max(0, Math.ceil((nextUtcMidnight - nowMs) / 60_000));
+    return `${String(Math.floor(minutesLeft / 60)).padStart(2, '0')}:${String(minutesLeft % 60).padStart(2, '0')}`;
+  }
   function advanceStreak(current, best, lastVisit, today) {
     const safeCurrent = Number.isSafeInteger(current) && current > 0 ? current : 0;
     const safeBest = Math.max(safeCurrent, Number.isSafeInteger(best) && best > 0 ? best : 0);
@@ -85,20 +123,7 @@
     start.setUTCDate(start.getUTCDate() - Math.min(streakLength - 1, 36_500));
     return start.toISOString().slice(0, 10);
   }
-  function streakCalendar(schedule, streakLength, runStartedDate, claimedKeys = []) {
-    if (!Array.isArray(schedule) || !Number.isSafeInteger(streakLength) || streakLength < 0) return [];
-    if (schedule.length === 0) return [];
-    const cycle = streakLength === 0 ? 0 : Math.floor((streakLength - 1) / schedule.length);
-    const currentDay = streakLength === 0 ? 1 : ((streakLength - 1) % schedule.length) + 1;
-    const claimed = new Set(Array.isArray(claimedKeys) ? claimedKeys : []);
-    return schedule.map(reward => {
-      const key = streakRewardKey(runStartedDate, cycle, reward.day);
-      const status = key && claimed.has(key) ? 'received' : reward.day < currentDay ? 'missed' : reward.day === currentDay ? 'available' : 'future';
-      return { ...reward, key, status };
-    });
-  }
-
-  const rules = { BASE_COOK_MS, LEVEL_THRESHOLDS, DAILY_TASK_REWARDS, STREAK_REWARD_SCHEDULE, UPGRADE_DEFINITIONS, DECORATION_DEFINITIONS, upgradeCost, playerLevel, levelReward, kitchenLevel, cookDuration, upgradePurchaseQuote, batchDumplingReward, batchDumplingRange, taskClaimAllowed, validUtcDay, advanceStreak, streakRewardKey, inferStreakStartDate, streakCalendar };
+  const rules = { BASE_COOK_MS, STOVE_LEVEL_COSTS, LEVEL_THRESHOLDS, DAILY_TASK_REWARDS, UPGRADE_DEFINITIONS, DECORATION_DEFINITIONS, upgradeCost, playerLevel, levelReward, streakRewardAmount, streakVisitKey, streakClaimKey, canClaimStreakReward, prepareStreakRewardClaim, recordStreakRewardClaim, recordStreakVisit, normalizeStreakRewardClaims, kitchenLevel, cookDuration, upgradePurchaseQuote, batchDumplingReward, batchDumplingRange, taskClaimAllowed, validUtcDay, utcMidnightCountdown, advanceStreak, streakRewardKey, inferStreakStartDate };
   if (typeof module !== 'undefined' && module.exports) module.exports = rules;
   else root.PelmeniRules = rules;
 })(globalThis);

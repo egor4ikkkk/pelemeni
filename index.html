@@ -89,11 +89,18 @@
     <section class="screen" id="screen-upgrades" data-screen="upgrades"><div class="page-heading"><span class="overline">GROW A LITTLE EVERY DAY</span><h1>Kitchen <em>upgrades</em></h1><p>Spend dumplings. Each level makes a clear, permanent improvement.</p><div class="upgrade-balance">Available dumplings <strong id="upgradeBalance">0</strong></div></div><div id="upgradeList" class="upgrade-list"></div></section>
     <section class="screen" id="screen-tasks" data-screen="tasks">
       <div class="page-heading"><span class="overline">SMALL GOALS, STEADY PROGRESS</span><h1>Daily <em>tasks</em></h1><p>Tasks reset at 00:00 UTC. Rewards are dumplings.</p></div>
-      <article class="streak-card" id="streakSummary" aria-live="polite"></article>
-      <section class="streak-calendar-panel" aria-labelledby="streakCalendarTitle">
-        <div class="streak-calendar-heading"><div><span class="task-tag">A LITTLE SOMETHING EACH DAY</span><h2 id="streakCalendarTitle">Daily rewards</h2></div><span class="streak-calendar-cycle" id="streakCycleLabel">7-day cycle</span></div>
-        <div class="streak-calendar" id="streakCalendar" aria-live="polite"></div>
-        <p class="streak-claim-note" id="streakClaimNote">Rewards are provisional. Claiming is paused until a secure server reward endpoint is available.</p>
+      <section class="streak-panel" id="streakSummary" aria-label="Daily streak">
+        <div class="streak-panel-heading"><span class="task-tag">DAILY STREAK</span><span class="streak-utc-badge">UTC</span></div>
+        <div class="streak-hero">
+          <div class="streak-emblem" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 7c2 12-9 13-9 25 0 4 2 7 5 9-1-8 7-10 8-18 8 7 13 15 11 23-2 8-8 13-17 13-11 0-19-7-19-18 0-8 5-14 11-20-1 9 1 13 4 15C25 24 38 20 32 7Z" fill="currentColor"/><path d="M32 37c5 5 7 9 5 14-1 3-4 5-7 5-5 0-8-4-7-9 1-4 5-7 9-10Z" fill="#fff1c7"/></svg></div>
+          <div class="streak-count"><strong id="streakCurrentDays">1</strong><span>DAY STREAK</span><small id="streakBestDays">Best streak: 1 day</small></div>
+        </div>
+        <div class="streak-reward-box">
+          <div class="streak-reward-heading"><span id="streakRewardLabel">TODAY'S REWARD</span><strong id="streakTodayReward">+1</strong></div>
+          <p id="streakRewardMessage" aria-live="polite">Your daily reward is ready.</p>
+          <div class="streak-after-claim"><span id="streakNextReward" hidden>Next reward: +2 dumplings</span><div id="streakCountdownWrap" hidden><small>Next reward in</small><strong id="streakCountdown">00:00</strong></div></div>
+          <button class="streak-claim-button" id="claimStreakButton" type="button">Claim reward</button>
+        </div>
       </section>
       <div class="task-list" id="taskList"></div>
       <p class="fine-print">Streak dates use UTC and the current device clock. Current streak visits sync with your save, but dates and reward claims are not server-verified.</p>
