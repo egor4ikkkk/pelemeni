@@ -258,7 +258,10 @@
     badge.dataset.status = status;
   }
   function toast(message) {
-    const el = $('toast'); el.textContent = message; el.classList.add('show');
+    const el = $('toast');
+    const nav = document.querySelector('.bottom-nav');
+    if (nav) el.style.bottom = `${Math.ceil(nav.getBoundingClientRect().height) + 12}px`;
+    el.textContent = message; el.classList.add('show');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
   }
   function utcDateLabel() { return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date()); }
@@ -431,8 +434,8 @@
     }).join('');
     const legacy = [
       { id:'herb-pot', name:'Fresh herb pots', desc:'+2 dumplings with every collected batch.', effect:'+2 dumplings / batch', cost:100 },
-      { id:'blue-tile', name:'Blue kitchen tiles', desc:'Keep your original decorative upgrade.', effect:'Kitchen decoration', cost:50 },
-      { id:'wooden-spoon', name:'Carved wooden spoon', desc:'+3 dumplings and a tiny cook-time bonus.', effect:'+3 dumplings / batch', cost:200 },
+      { id:'blue-tile', name:'Blue kitchen tiles', desc:'Reduce cooking time by 3 seconds per batch.', effect:'−3 sec cooking time / batch', cost:50 },
+      { id:'wooden-spoon', name:'Carved wooden spoon', desc:'+3 dumplings per batch and reduce cooking time by 3 seconds.', effect:'+3 dumplings / batch · −3 sec cooking time', cost:200 },
       ...rules.DECORATION_DEFINITIONS.map(item => ({ ...item, desc:item.description }))
     ].map(item => {
       const owned = state.upgrades.includes(item.id);
@@ -500,7 +503,12 @@
     return tasks;
   }
   function renderAchievements() {
-    $('achievementList').innerHTML = achievementGroups.map(group => {
+    const list = $('achievementList');
+    const previousOpen = new Map([...list.querySelectorAll('.achievement-group[data-group-id]')].map(group => [group.dataset.groupId, group.open]));
+    list.innerHTML = achievementGroups.map((group, index) => {
+      const groupId = String(index);
+      const claimable = group.ids.filter(id => state.achievements.includes(id) && !state.achievementClaims.includes(id)).length;
+      const open = previousOpen.has(groupId) ? previousOpen.get(groupId) : claimable > 0;
       const cards = group.ids.map(id => {
       const item = achievementDefinitions.find(definition => definition.id === id);
       if (!item) return '';
@@ -516,8 +524,14 @@
           : `<button class="achievement-claim" type="button" data-claim-achievement="${item.id}">Claim +${item.reward}</button>`;
       return `<article class="achievement-card ${unlocked ? 'unlocked' : ''} ${unlocked && !claimed ? 'reward-ready' : ''} ${claimed ? 'claimed' : ''} ${animation ? `achievement-${animation}` : ''}"><span class="achievement-icon" aria-hidden="true">${unlocked ? '✦' : '○'}</span><div class="achievement-copy"><h3>${item.title}</h3><p>${item.description}</p><small class="achievement-condition">${item.condition}</small><small class="achievement-progress">${progress.toLocaleString('en-US')} / ${item.goal.toLocaleString('en-US')}</small><small class="achievement-reward">Reward: ${item.reward} dumplings</small></div><small class="achievement-status">${status}</small>${action}</article>`;
       }).join('');
-      return `<section class="achievement-group" aria-label="${group.title}"><div class="achievement-group-heading"><h3>${group.title}</h3><small>${group.ids.filter(id => state.achievements.includes(id)).length}/${group.ids.length} unlocked</small></div><div class="achievement-group-cards">${cards}</div></section>`;
+      const unlockedCount = group.ids.filter(id => state.achievements.includes(id)).length;
+      const readyLabel = claimable ? ` · ${claimable} reward${claimable === 1 ? '' : 's'} ready` : '';
+      return `<details class="achievement-group" data-group-id="${groupId}" ${open ? 'open' : ''}><summary class="achievement-group-heading" aria-expanded="${open}" aria-controls="achievement-group-panel-${groupId}"><span class="achievement-group-title">${group.title}</span><span class="achievement-group-meta">${unlockedCount}/${group.ids.length} unlocked${readyLabel}</span><span class="achievement-group-chevron" aria-hidden="true">⌄</span></summary><div class="achievement-group-cards" id="achievement-group-panel-${groupId}">${cards}</div></details>`;
     }).join('');
+    list.querySelectorAll('.achievement-group').forEach(group => {
+      const summary = group.querySelector('.achievement-group-heading');
+      group.addEventListener('toggle', () => summary.setAttribute('aria-expanded', String(group.open)));
+    });
     achievementAnimationKinds.clear();
   }
   function claimAchievement(id) {
@@ -754,9 +768,14 @@
   $('claimStreakButton').addEventListener('click', claimStreakReward);
   document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => {
     const tab = button.dataset.tab;
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('selected', item === button));
+    document.querySelectorAll('.nav-item').forEach(item => {
+      const selected = item === button;
+      item.classList.toggle('selected', selected);
+      if (selected) item.setAttribute('aria-current', 'page');
+      else item.removeAttribute('aria-current');
+    });
     document.querySelectorAll('.screen').forEach(screen => screen.classList.toggle('active', screen.dataset.screen === tab));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }));
   try {
     if (typeof telegramWebApp?.ready === 'function') telegramWebApp.ready();

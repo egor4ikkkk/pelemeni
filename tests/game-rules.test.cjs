@@ -624,6 +624,7 @@ test('profile statistics read existing save fields and achievements remain group
   assert.match(app, /function completedDailyTaskCount\(\) \{ return rules\.completedDailyTaskCount\(dailyTaskSet\(\), state\.dailyDate === nowDay\(\)\); \}/);
   assert.match(app, /\$\('profileDailyTasksCompleted'\)\.textContent = completedDailyTaskCount\(\)/);
   assert.match(html, /id="profileBatches"/);
+  assert.match(html, /TRACKED PELMENI EARNED[\s\S]*Batches, streak &amp; daily tasks/);
   for (const id of ['profileBalance','profileLifetimeDumplings','profileStartedBatches','profileBatches','profileCurrentStreak','profileBestStreak','profileDailyTasksCompleted','profileStoveLevel','profilePotLevel','profileRecipeLevel','profileAchievementsCount','profileAchievementClaimsCount']) assert.ok(html.includes(`id="${id}"`), `${id} should be rendered in the profile`);
   const start = app.indexOf('const achievementGroups = ');
   const end = app.indexOf('\n  ];', start) + 5;
@@ -632,6 +633,56 @@ test('profile statistics read existing save fields and achievements remain group
   assert.equal(new Set(groups.flatMap(group => group.ids)).size, 25);
   assert.match(css, /\.profile-detail-grid\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(css, /@media\(max-width:380px\)/);
+});
+
+test('achievement groups are collapsible, default open for unclaimed rewards, and retain user toggles on rerender', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
+  const renderer = app.slice(app.indexOf('function renderAchievements() {'), app.indexOf('\n  function claimAchievement', app.indexOf('function renderAchievements() {')));
+  assert.match(renderer, /new Map\(\[\.\.\.list\.querySelectorAll\('\.achievement-group\[data-group-id\]'\)\]/);
+  assert.match(renderer, /state\.achievements\.includes\(id\) && !state\.achievementClaims\.includes\(id\)/);
+  assert.match(renderer, /previousOpen\.has\(groupId\) \? previousOpen\.get\(groupId\) : claimable > 0/);
+  assert.match(renderer, /<details class="achievement-group"[\s\S]*?<summary class="achievement-group-heading" aria-expanded="\$\{open\}" aria-controls=/);
+  assert.match(renderer, /group\.addEventListener\('toggle',[\s\S]*summary\.setAttribute\('aria-expanded', String\(group\.open\)\)/);
+  assert.match(renderer, /data-claim-achievement="\$\{item\.id\}"/);
+  assert.match(app, /function claimAchievement\(id\)[\s\S]*addDumplings\(claim\.amount, false\)/);
+  assert.match(css, /\.achievement-group-heading\{[^}]*min-height:44px[^}]*cursor:pointer/);
+  assert.match(css, /\.achievement-group-heading:focus-visible/);
+  assert.match(css, /\.achievement-group-cards \.achievement-card\{[^}]*opacity:1/);
+});
+
+test('decoration descriptions match their existing batch and cook-time effects', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.match(app, /name:'Fresh herb pots', desc:'\+2 dumplings with every collected batch\.', effect:'\+2 dumplings \/ batch'/);
+  assert.match(app, /name:'Blue kitchen tiles', desc:'Reduce cooking time by 3 seconds per batch\.', effect:'−3 sec cooking time \/ batch'/);
+  assert.match(app, /name:'Carved wooden spoon', desc:'\+3 dumplings per batch and reduce cooking time by 3 seconds\.', effect:'\+3 dumplings \/ batch · −3 sec cooking time'/);
+  assert.match(app, /function legacySecondsOff\(\) \{ return \(state\.equipped\.includes\('blue-tile'\) \? 3 : 0\) \+ \(state\.equipped\.includes\('wooden-spoon'\) \? 3 : 0\); \}/);
+  assert.match(app, /const oldBonus = \(state\.equipped\.includes\('herb-pot'\) \? 2 : 0\) \+ \(state\.equipped\.includes\('wooden-spoon'\) \? 3 : 0\)/);
+});
+
+test('motion and toast accessibility preserve state while respecting reduced motion', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*animation:none!important;transition-duration:\.01ms!important/);
+  for (const selector of [
+    'pot-one-cooking .main-pot .pot-lid', 'pot-two-cooking .second-pot-art .pot-lid',
+    'pot-one-cooking .main-pot .steam-stream', 'pot-one-ready .main-pot .steam-stream',
+    'main-pot.burner-on .burner-flame', 'dumplings-collect-fx'
+  ]) assert.ok(css.includes(selector), `${selector} should retain a reduced-motion state rule`);
+  assert.match(css, /\.pot-one-cooking \.main-pot \.pot-lid,\.pot-two-cooking \.second-pot-art \.pot-lid\{animation:lidBoil/);
+  assert.match(css, /\.toast\{[^}]*max-width:calc\(100vw - 24px\)[^}]*overflow-wrap:anywhere[^}]*transition:opacity/);
+  assert.match(app, /nav\.getBoundingClientRect\(\)\.height\) \+ 12/);
+  assert.match(app, /function toast\(message\)[\s\S]*clearTimeout\(toastTimer\); toastTimer = setTimeout\(\(\) => el\.classList\.remove\('show'\), 2400\)/);
+  assert.match(html, /id="toast" role="status" aria-live="polite" aria-atomic="true"/);
+  assert.match(html, /class="nav-item selected" aria-current="page"/);
+  assert.match(app, /if \(selected\) item\.setAttribute\('aria-current', 'page'\)/);
 });
 
 test('completed daily task profile count is zero for empty or stale saves and counts finished current tasks only', () => {

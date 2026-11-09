@@ -250,3 +250,37 @@ a,
   .cook-actions.two-pots .primary-button span:first-child{max-width:calc(100% - 15px);font-size:9px}
   .achievement-status{white-space:normal;max-width:62px}
 }
+
+/* Stage 2: clearer secondary text and compact, accessible achievement groups. */
+.stat-tail{color:#a7bdce}
+.profile-detail-card>small{color:#aec1d0}
+.upgrade-effect span,.upgrade-next-effect span{color:#a6bdcf}
+.achievement-card p{color:#b0c3d1}
+.achievement-card .achievement-progress{color:#a9c1d1}
+.achievement-group{display:block;overflow:hidden;border:1px solid #284864;border-radius:12px;background:#0b233a}
+.achievement-group-heading{display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 10px;cursor:pointer;list-style:none}
+.achievement-group-heading::-webkit-details-marker{display:none}
+.achievement-group-title{color:#d6e5ef;font-size:11px;font-weight:900}
+.achievement-group-meta{margin-left:auto;color:#a6bdcf;font-size:9px;font-weight:800;text-align:right}
+.achievement-group-chevron{flex:none;color:#a6bdcf;font-size:15px;line-height:1;transition:transform .18s ease}
+.achievement-group[open] .achievement-group-chevron{transform:rotate(180deg)}
+.achievement-group-heading:focus-visible{outline:2px solid #55bdf2;outline-offset:-3px;border-radius:10px}
+.achievement-group-cards{padding:0 8px 8px}
+.achievement-group-cards .achievement-card{border-color:#2b4b64;opacity:1}
+@media(prefers-reduced-motion:reduce){.achievement-group-chevron{transition:none}}
+
+/* Toast stays above the measured navigation bar and animates only opacity/transform. */
+.toast{z-index:5;width:max-content;max-width:calc(100vw - 24px);max-height:min(24svh,160px);overflow-y:auto;white-space:normal;overflow-wrap:anywhere;line-height:1.4;overscroll-behavior:contain;transition:opacity .18s ease,transform .18s cubic-bezier(.2,.7,.25,1)}
+
+/* The cooking lid is state-driven; animate only the lid, never the pot or stove. */
+.main-pot .pot-lid,.second-pot-art .pot-lid{will-change:auto}
+.pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid{animation:lidBoil 1.15s ease-in-out infinite;will-change:transform}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition-duration:.01ms!important;transition-delay:0ms!important;scroll-behavior:auto!important}
+  .pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid{transform:none!important}
+  .main-pot.burner-on .burner-flame,.second-pot-art.burner-on .burner-flame{opacity:.85!important;transform:none!important}
+  .pot-one-cooking .main-pot .steam-stream,.pot-two-cooking .second-pot-art .steam-stream{opacity:.3!important;transform:none!important}
+  .pot-one-ready .main-pot .steam-stream,.pot-two-ready .second-pot-art .steam-stream{opacity:.6!important;transform:none!important}
+  .dumplings-collect-fx{opacity:0!important}
+}
