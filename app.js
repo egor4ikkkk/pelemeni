@@ -1,6 +1,7 @@
 (() => {
   const CLOUD_URL = 'https://qcagyjlsqlihdcdbxgxc.supabase.co/functions/v1/quick-function';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ejIIlpOGM6SViZ_ZcYYi-g_tDChykDP';
+  const TEST_COOK_DURATION_MS = null;
   const LEGACY_STORAGE_KEY = 'pelmeni-clicker-mini-v2';
   const legacyUpgradeIds = ['herb-pot', 'blue-tile', 'wooden-spoon', 'second-pot'];
   const telegramWebApp = window.Telegram?.WebApp;
@@ -11,13 +12,20 @@
   const $ = id => document.getElementById(id);
   const safeInt = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
   const nowDay = () => new Date().toISOString().slice(0, 10);
-  const DAILY_TASK_IDS = ['login', 'cook', 'upgrade', 'collect', 'collect-dumplings', 'two-pots'];
+  const DAILY_TASK_IDS = ['login', 'cook', 'upgrade', 'collect', 'collect-dumplings', 'collect-two', 'two-pots'];
+  const ACHIEVEMENT_IDS = [
+    'first-visit', 'first-start', 'first-batch', 'first-upgrade',
+    'dumpling-100', 'dumpling-500', 'dumpling-thousand', 'dumpling-5000', 'dumpling-10000',
+    'starts-ten', 'starts-fifty', 'five-batches', 'ten-batches', 'twenty-five-batches', 'fifty-batches',
+    'upgrade-five', 'upgrade-ten', 'second-pot', 'three-decorations', 'master-kitchen', 'both-burners',
+    'streak-three', 'streak-seven', 'streak-fourteen', 'streak-thirty', 'score-1000'
+  ];
   const emptyDailyTasks = () => Object.fromEntries(DAILY_TASK_IDS.map(id => [id, { progress: 0, claimed: false }]));
   const freshState = () => ({
     balance: 0, score: 0, points: 0, pointsRetired: true, batches: 0, startedAt: null, endsAt: null, batchDurationMs: null,
     activeBatches: [], upgrades: [], equipped: [], upgradeLevels: {}, taskDay: nowDay(), taskBatches: 0,
     taskClaimedOn: null, taskBalanceRewardVersion: 1, referralCode: null, dailyDate: nowDay(),
-    dailyTasks: emptyDailyTasks(), loginRewardDate: null, firstLoginNoReward: false, lifetimeDumplings: 0, levelClaims: [], achievements: [],
+    dailyTasks: emptyDailyTasks(), dailyTaskVariant: rules.dailyTaskVariantForDate(nowDay()), loginRewardDate: null, firstLoginNoReward: false, lifetimeDumplings: 0, levelClaims: [], achievements: [], achievementClaims: [],
     streakCurrent: 0, streakBest: 0, streakLastVisitDate: null, streakRunStartedDate: null, streakRewardClaims: [], taskPotsUsed: [], potCollections: { 1: 0, 2: 0 },
     joinedAt: null, lastBatchReward: null, lastBatchAt: null
   });
@@ -33,6 +41,7 @@
   let retryTimer = null;
   let retryDelay = 2000;
   let saveInFlight = false;
+  const achievementAnimationKinds = new Map();
 
   function normalizeState(saved) {
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return freshState();
@@ -45,20 +54,28 @@
       const level = safeInt(saved.upgradeLevels?.[item.id]);
       currentLevels[item.id] = Math.min(item.maxLevel, level);
     }
+    const restoreBatchTimes = batch => {
+      const elapsedDuration = batch.endsAt - batch.startedAt;
+      const hasSavedDuration = Object.prototype.hasOwnProperty.call(batch, 'durationMs');
+      if (!hasSavedDuration) return { startedAt: batch.startedAt, endsAt: batch.endsAt, durationMs: elapsedDuration };
+      if (Number.isSafeInteger(batch.durationMs) && batch.durationMs > 0) {
+        return { startedAt: batch.startedAt, endsAt: batch.endsAt, durationMs: batch.durationMs };
+      }
+      // Keep the previous safe fallback only for malformed saved duration values.
+      const fallbackDuration = safeInt(batch.durationMs) || elapsedDuration;
+      const durationMs = fallbackDuration > rules.BASE_COOK_MS ? rules.BASE_COOK_MS : fallbackDuration;
+      return { startedAt: batch.startedAt, endsAt: batch.startedAt + durationMs, durationMs };
+    };
     let activeBatches = [];
     if (Array.isArray(saved.activeBatches)) {
       activeBatches = saved.activeBatches.filter(batch => batch && typeof batch.id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(batch.id) && Number.isFinite(batch.startedAt) && Number.isFinite(batch.endsAt) && batch.endsAt > batch.startedAt)
         .slice(0, (secondPotEquipped || ownedLegacy.includes('second-pot')) ? 2 : 1)
         .map((batch, index) => {
-          const savedDuration = safeInt(batch.durationMs) || batch.endsAt - batch.startedAt;
-          const durationMs = savedDuration > rules.BASE_COOK_MS ? rules.BASE_COOK_MS : savedDuration;
           const pot = batch.pot === 1 || batch.pot === 2 ? batch.pot : index + 1;
-          return { id: batch.id, pot, startedAt: batch.startedAt, endsAt: batch.startedAt + durationMs, durationMs };
+          return { id: batch.id, pot, ...restoreBatchTimes(batch) };
         });
     } else if (Number.isFinite(saved.startedAt) && Number.isFinite(saved.endsAt) && saved.endsAt > saved.startedAt) {
-      const savedDuration = safeInt(saved.batchDurationMs) || saved.endsAt - saved.startedAt;
-      const durationMs = savedDuration > rules.BASE_COOK_MS ? rules.BASE_COOK_MS : savedDuration;
-      activeBatches = [{ id: 'legacy-batch', pot: 1, startedAt: saved.startedAt, endsAt: saved.startedAt + durationMs, durationMs }];
+      activeBatches = [{ id: 'legacy-batch', pot: 1, ...restoreBatchTimes({ startedAt: saved.startedAt, endsAt: saved.endsAt, ...(Object.prototype.hasOwnProperty.call(saved, 'batchDurationMs') ? { durationMs: saved.batchDurationMs } : {}) }) }];
     }
     const dailyTasks = emptyDailyTasks();
     for (const id of DAILY_TASK_IDS) {
@@ -82,7 +99,10 @@
       taskBalanceRewardVersion: 1,
       referralCode: typeof saved.referralCode === 'string' && /^PC-[A-Z0-9]{6}$/.test(saved.referralCode) ? saved.referralCode : null,
       dailyDate: rules.validUtcDay(saved.dailyDate) ? saved.dailyDate : (rules.validUtcDay(saved.taskDay) ? saved.taskDay : null),
-      dailyTasks, loginRewardDate: typeof saved.loginRewardDate === 'string' ? saved.loginRewardDate : null,
+      dailyTasks,
+      dailyTaskVariant: ['classic', 'batch-focus', 'kitchen-rhythm'].includes(saved.dailyTaskVariant) ? saved.dailyTaskVariant
+        : ((rules.validUtcDay(saved.dailyDate) ? saved.dailyDate : rules.validUtcDay(saved.taskDay) ? saved.taskDay : null) === nowDay() ? 'classic' : null),
+      loginRewardDate: typeof saved.loginRewardDate === 'string' ? saved.loginRewardDate : null,
       streakCurrent: safeInt(saved.streakCurrent), streakBest: Math.max(safeInt(saved.streakBest), safeInt(saved.streakCurrent)),
       streakLastVisitDate: rules.validUtcDay(saved.streakLastVisitDate) ? saved.streakLastVisitDate : null,
       streakRunStartedDate: rules.validUtcDay(saved.streakRunStartedDate) ? saved.streakRunStartedDate : rules.inferStreakStartDate(safeInt(saved.streakCurrent), saved.streakLastVisitDate),
@@ -90,7 +110,8 @@
       taskPotsUsed: Array.isArray(saved.taskPotsUsed) ? [...new Set(saved.taskPotsUsed.filter(pot => pot === 1 || pot === 2))] : [],
       potCollections: { 1: safeInt(saved.potCollections?.[1]), 2: safeInt(saved.potCollections?.[2]) },
       firstLoginNoReward: saved.firstLoginNoReward === true,
-      achievements: Array.isArray(saved.achievements) ? [...new Set(saved.achievements.filter(id => ['first-batch','score-1000','five-batches','ten-batches','twenty-five-batches','first-upgrade','master-kitchen','first-visit','dumpling-thousand','streak-three','streak-seven','streak-fourteen','streak-thirty','both-burners'].includes(id)))] : [],
+      achievements: Array.isArray(saved.achievements) ? [...new Set(saved.achievements.filter(id => ACHIEVEMENT_IDS.includes(id)))] : [],
+      achievementClaims: Array.isArray(saved.achievementClaims) ? [...new Set(saved.achievementClaims.filter(id => ACHIEVEMENT_IDS.includes(id) && id !== 'score-1000' && Array.isArray(saved.achievements) && saved.achievements.includes(id)))] : [],
       joinedAt: typeof saved.joinedAt === 'string' && !Number.isNaN(Date.parse(saved.joinedAt)) ? saved.joinedAt : null,
       lastBatchReward: saved.lastBatchReward && Number.isSafeInteger(saved.lastBatchReward.dumplings) && saved.lastBatchReward.dumplings >= 0 ? { dumplings: saved.lastBatchReward.dumplings } : null,
       lastBatchAt: typeof saved.lastBatchAt === 'string' && !Number.isNaN(Date.parse(saved.lastBatchAt)) ? saved.lastBatchAt : null
@@ -116,6 +137,12 @@
       return freshState();
     }
   }
+  function revealInitializedApp() {
+    $('loadingScreen').hidden = true;
+    appShell.hidden = false;
+    appShell.inert = false;
+    appShell.setAttribute('aria-busy', 'false');
+  }
   function serializeState() {
     return {
       balance: state.balance, score: state.score, points: 0, pointsRetired: true, batches: state.batches,
@@ -124,11 +151,11 @@
       upgradeLevels: { ...state.upgradeLevels }, taskDay: state.taskDay, taskBatches: state.taskBatches,
       lifetimeDumplings: state.lifetimeDumplings, levelClaims: [...state.levelClaims],
       taskClaimedOn: state.taskClaimedOn, taskBalanceRewardVersion: state.taskBalanceRewardVersion,
-      referralCode: state.referralCode, dailyDate: state.dailyDate, dailyTasks: JSON.parse(JSON.stringify(state.dailyTasks)),
+      referralCode: state.referralCode, dailyDate: state.dailyDate, dailyTasks: JSON.parse(JSON.stringify(state.dailyTasks)), dailyTaskVariant: state.dailyTaskVariant,
       loginRewardDate: state.loginRewardDate, firstLoginNoReward: state.firstLoginNoReward,
       streakCurrent: state.streakCurrent, streakBest: state.streakBest, streakLastVisitDate: state.streakLastVisitDate,
       streakRunStartedDate: state.streakRunStartedDate, streakRewardClaims: [...state.streakRewardClaims], taskPotsUsed: [...state.taskPotsUsed], potCollections: { ...state.potCollections },
-      achievements: [...state.achievements], joinedAt: state.joinedAt, lastBatchReward: state.lastBatchReward,
+      achievements: [...state.achievements], achievementClaims: [...state.achievementClaims], joinedAt: state.joinedAt, lastBatchReward: state.lastBatchReward,
       lastBatchAt: state.lastBatchAt, schemaVersion: 6
     };
   }
@@ -188,7 +215,7 @@
       render();
       setSyncStatus('This device only', 'local');
       console.info('[Pelmeni Clicker] No Telegram initData; using this browser’s local save.');
-      appShell.inert = false; appShell.setAttribute('aria-busy', 'false');
+      revealInitializedApp();
       return;
     }
     setSyncStatus('Loading cloud save…', 'loading');
@@ -222,7 +249,7 @@
       console.error('[Pelmeni Clicker] Cloud load/sync error; using local progress. Check the Edge Function response and network.', error.message);
     }
     render();
-    appShell.inert = false; appShell.setAttribute('aria-busy', 'false');
+    revealInitializedApp();
   }
   function setSyncStatus(message, status) {
     const badge = $('syncStatus');
@@ -236,7 +263,7 @@
   }
   function utcDateLabel() { return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date()); }
   function legacySecondsOff() { return (state.equipped.includes('blue-tile') ? 3 : 0) + (state.equipped.includes('wooden-spoon') ? 3 : 0); }
-  function cookDurationMs() { return rules.cookDuration(state.upgradeLevels, legacySecondsOff()); }
+  function cookDurationMs() { return TEST_COOK_DURATION_MS ?? rules.cookDuration(state.upgradeLevels, legacySecondsOff()); }
   function capacity() { return state.equipped.includes('second-pot') ? 2 : 1; }
   function batchForPot(pot) { return state.activeBatches.find(batch => batch.pot === pot) || null; }
   function firstReadyBatch() { return state.activeBatches.filter(batch => Date.now() >= batch.endsAt).sort((a, b) => a.endsAt - b.endsAt)[0] || null; }
@@ -258,10 +285,11 @@
     state.streakLastVisitDate = streak.lastVisit;
     if (streak.changed && (!previousStreakDate || elapsedVisitDays > 1)) state.streakRunStartedDate = today;
     state.streakRunStartedDate ||= streak.lastVisit;
-    const firstVisit = !state.joinedAt && state.batches === 0 && state.balance === 0 && state.upgrades.length === 0 && totalUpgradeLevels() === 0;
+    const firstVisit = isFirstVisit();
     if (state.dailyDate !== today) {
       state.dailyDate = today;
       state.dailyTasks = emptyDailyTasks();
+      state.dailyTaskVariant = rules.dailyTaskVariantForDate(today);
       state.loginRewardDate = null;
       state.firstLoginNoReward = false;
       state.taskDay = today;
@@ -275,7 +303,10 @@
     } else {
       state.dailyTasks.login = { progress: 1, claimed: true };
     }
-    if (firstVisit && !state.achievements.includes('first-visit')) state.achievements.push('first-visit');
+    if (firstVisit && !state.achievements.includes('first-visit')) {
+      state.achievements.push('first-visit');
+      achievementAnimationKinds.set('first-visit', 'unlocked');
+    }
     // Keep the legacy login marker current so an older open client will not
     // auto-award its former login bonus. The visit marker means this is the
     // new manual-claim flow, not proof that the player has claimed today.
@@ -284,25 +315,61 @@
     if (state.dailyTasks.cook?.progress) state.taskBatches = Math.max(1, state.taskBatches);
   }
   const achievementDefinitions = [
-    { id: 'first-batch', title: 'First batch', description: 'Collect your first pot of dumplings.', progress: () => state.batches, goal: 1, achieved: () => state.batches >= 1 },
-    { id: 'first-visit', title: 'First day in the kitchen', description: 'Welcome to Pelmeni Clicker.', progress: () => state.achievements.includes('first-visit') ? 1 : 0, goal: 1, achieved: () => state.achievements.includes('first-visit') },
-    { id: 'five-batches', title: 'Five batches', description: 'Collect five batches.', progress: () => state.batches, goal: 5, achieved: () => state.batches >= 5 },
-    { id: 'ten-batches', title: 'Regular chef', description: 'Collect ten batches.', progress: () => state.batches, goal: 10, achieved: () => state.batches >= 10 },
-    { id: 'twenty-five-batches', title: 'Kitchen favorite', description: 'Collect twenty-five batches.', progress: () => state.batches, goal: 25, achieved: () => state.batches >= 25 },
-    { id: 'first-upgrade', title: 'First upgrade', description: 'Improve your kitchen for the first time.', progress: () => totalUpgradeLevels() + state.upgrades.length, goal: 1, achieved: () => totalUpgradeLevels() > 0 || state.upgrades.length > 0 },
-    { id: 'master-kitchen', title: 'Master kitchen', description: 'Reach kitchen level 6.', progress: () => rules.kitchenLevel(state.upgradeLevels), goal: 6, achieved: () => rules.kitchenLevel(state.upgradeLevels) >= 6 },
-    { id: 'dumpling-thousand', title: 'A thousand dumplings', description: 'Earn 1,000 dumplings over time.', progress: () => state.lifetimeDumplings, goal: 1000, achieved: () => state.lifetimeDumplings >= 1000 },
-    { id: 'streak-three', title: 'Three-day rhythm', description: 'Visit on three consecutive UTC days.', progress: () => state.streakBest, goal: 3, achieved: () => state.streakBest >= 3 },
-    { id: 'streak-seven', title: 'A week in the kitchen', description: 'Visit on seven consecutive UTC days.', progress: () => state.streakBest, goal: 7, achieved: () => state.streakBest >= 7 },
-    { id: 'streak-fourteen', title: 'Kitchen regular', description: 'Visit on fourteen consecutive UTC days.', progress: () => state.streakBest, goal: 14, achieved: () => state.streakBest >= 14 },
-    { id: 'streak-thirty', title: 'Thirty-day tradition', description: 'Visit on thirty consecutive UTC days.', progress: () => state.streakBest, goal: 30, achieved: () => state.streakBest >= 30 },
-    { id: 'both-burners', title: 'Two burners, one chef', description: 'Collect a batch from each pot.', progress: () => Math.min(state.potCollections[1], 1) + Math.min(state.potCollections[2], 1), goal: 2, achieved: () => state.potCollections[1] > 0 && state.potCollections[2] > 0 }
+    { id: 'first-visit', title: 'First day in the kitchen', description: 'Welcome to Pelmeni Clicker.', condition: 'Visit the kitchen for the first time.', progress: () => state.achievements.includes('first-visit') ? 1 : 0, goal: 1, reward: 5, achieved: () => state.achievements.includes('first-visit') },
+    { id: 'first-start', title: 'First cooking', description: 'Your first pot is on the stove.', condition: 'Start 1 batch.', progress: () => startedBatchCount(), goal: 1, reward: 5, achieved: () => startedBatchCount() >= 1 },
+    { id: 'first-batch', title: 'First batch', description: 'Collect your first pot of dumplings.', condition: 'Collect 1 batch.', progress: () => state.batches, goal: 1, reward: 10, achieved: () => state.batches >= 1 },
+    { id: 'first-upgrade', title: 'First upgrade', description: 'Improve your kitchen for the first time.', condition: 'Buy 1 upgrade level or item.', progress: () => totalUpgradeCount(), goal: 1, reward: 10, achieved: () => totalUpgradeCount() >= 1 },
+
+    { id: 'dumpling-100', title: 'Dumpling sampler', description: 'Your kitchen is getting busy.', condition: 'Earn 100 dumplings over time.', progress: () => state.lifetimeDumplings, goal: 100, reward: 5, achieved: () => state.lifetimeDumplings >= 100 },
+    { id: 'dumpling-500', title: 'Dumpling enthusiast', description: 'A growing lifetime harvest.', condition: 'Earn 500 dumplings over time.', progress: () => state.lifetimeDumplings, goal: 500, reward: 10, achieved: () => state.lifetimeDumplings >= 500 },
+    { id: 'dumpling-thousand', title: 'A thousand dumplings', description: 'A serious collection is taking shape.', condition: 'Earn 1,000 dumplings over time.', progress: () => state.lifetimeDumplings, goal: 1000, reward: 20, achieved: () => state.lifetimeDumplings >= 1000 },
+    { id: 'dumpling-5000', title: 'Dumpling keeper', description: 'Thousands of dumplings have passed through your kitchen.', condition: 'Earn 5,000 dumplings over time.', progress: () => state.lifetimeDumplings, goal: 5000, reward: 50, achieved: () => state.lifetimeDumplings >= 5000 },
+    { id: 'dumpling-10000', title: 'Pelmeni legend', description: 'A remarkable lifetime harvest.', condition: 'Earn 10,000 dumplings over time.', progress: () => state.lifetimeDumplings, goal: 10000, reward: 100, achieved: () => state.lifetimeDumplings >= 10000 },
+
+    { id: 'starts-ten', title: 'Getting into the rhythm', description: 'Ten batches have gone on the stove.', condition: 'Start 10 batches.', progress: () => startedBatchCount(), goal: 10, reward: 5, achieved: () => startedBatchCount() >= 10 },
+    { id: 'starts-fifty', title: 'Seasoned cook', description: 'Fifty batches have gone on the stove.', condition: 'Start 50 batches.', progress: () => startedBatchCount(), goal: 50, reward: 15, achieved: () => startedBatchCount() >= 50 },
+    { id: 'five-batches', title: 'Five batches', description: 'Your cooking routine is underway.', condition: 'Collect 5 batches.', progress: () => state.batches, goal: 5, reward: 5, achieved: () => state.batches >= 5 },
+    { id: 'ten-batches', title: 'Regular chef', description: 'Ten batches collected.', condition: 'Collect 10 batches.', progress: () => state.batches, goal: 10, reward: 10, achieved: () => state.batches >= 10 },
+    { id: 'twenty-five-batches', title: 'Kitchen favorite', description: 'Twenty-five fresh batches collected.', condition: 'Collect 25 batches.', progress: () => state.batches, goal: 25, reward: 15, achieved: () => state.batches >= 25 },
+    { id: 'fifty-batches', title: 'Batch master', description: 'Fifty batches collected.', condition: 'Collect 50 batches.', progress: () => state.batches, goal: 50, reward: 25, achieved: () => state.batches >= 50 },
+
+    { id: 'upgrade-five', title: 'Kitchen in progress', description: 'Your kitchen has grown through steady improvements.', condition: 'Buy 5 upgrade levels or items.', progress: () => totalUpgradeCount(), goal: 5, reward: 10, achieved: () => totalUpgradeCount() >= 5 },
+    { id: 'upgrade-ten', title: 'Kitchen specialist', description: 'Ten lasting kitchen improvements.', condition: 'Buy 10 upgrade levels or items.', progress: () => totalUpgradeCount(), goal: 10, reward: 20, achieved: () => totalUpgradeCount() >= 10 },
+    { id: 'second-pot', title: 'Double the kitchen', description: 'You can cook in two pots at once.', condition: 'Own the Second Pot.', progress: () => state.upgrades.includes('second-pot') ? 1 : 0, goal: 1, reward: 25, achieved: () => state.upgrades.includes('second-pot') },
+    { id: 'three-decorations', title: 'A personal touch', description: 'Your kitchen has its own style.', condition: 'Own all 3 kitchen decorations.', progress: () => ['herb-pot', 'blue-tile', 'wooden-spoon'].filter(id => state.upgrades.includes(id)).length, goal: 3, reward: 15, achieved: () => ['herb-pot', 'blue-tile', 'wooden-spoon'].every(id => state.upgrades.includes(id)) },
+    { id: 'master-kitchen', title: 'Master kitchen', description: 'Reach kitchen level 6.', condition: 'Reach kitchen level 6.', progress: () => rules.kitchenLevel(state.upgradeLevels), goal: 6, reward: 15, achieved: () => rules.kitchenLevel(state.upgradeLevels) >= 6 },
+    { id: 'both-burners', title: 'Two burners, one chef', description: 'Both pots have helped prepare a meal.', condition: 'Collect a batch from each pot.', progress: () => Math.min(state.potCollections[1], 1) + Math.min(state.potCollections[2], 1), goal: 2, reward: 15, achieved: () => state.potCollections[1] > 0 && state.potCollections[2] > 0 },
+
+    { id: 'streak-three', title: 'Three-day rhythm', description: 'Three consecutive UTC visits.', condition: 'Reach a 3-day best streak.', progress: () => state.streakBest, goal: 3, reward: 10, achieved: () => state.streakBest >= 3 },
+    { id: 'streak-seven', title: 'A week in the kitchen', description: 'A full week of consecutive UTC visits.', condition: 'Reach a 7-day best streak.', progress: () => state.streakBest, goal: 7, reward: 20, achieved: () => state.streakBest >= 7 },
+    { id: 'streak-fourteen', title: 'Kitchen regular', description: 'Two weeks of consecutive UTC visits.', condition: 'Reach a 14-day best streak.', progress: () => state.streakBest, goal: 14, reward: 40, achieved: () => state.streakBest >= 14 },
+    { id: 'streak-thirty', title: 'Thirty-day tradition', description: 'A month of consecutive UTC visits.', condition: 'Reach a 30-day best streak.', progress: () => state.streakBest, goal: 30, reward: 100, achieved: () => state.streakBest >= 30 }
+  ];
+  const achievementGroups = [
+    { title: 'First steps', ids: ['first-visit', 'first-start', 'first-batch', 'first-upgrade'] },
+    { title: 'Dumpling collector', ids: ['dumpling-100', 'dumpling-500', 'dumpling-thousand', 'dumpling-5000', 'dumpling-10000'] },
+    { title: 'Cooking master', ids: ['starts-ten', 'starts-fifty', 'five-batches', 'ten-batches', 'twenty-five-batches', 'fifty-batches'] },
+    { title: 'Kitchen growth', ids: ['upgrade-five', 'upgrade-ten', 'second-pot', 'three-decorations', 'master-kitchen', 'both-burners'] },
+    { title: 'Consistency', ids: ['streak-three', 'streak-seven', 'streak-fourteen', 'streak-thirty'] }
   ];
   function totalUpgradeLevels() { return Object.values(state.upgradeLevels).reduce((sum, value) => sum + safeInt(value), 0); }
+  function totalUpgradeCount() { return totalUpgradeLevels() + state.upgrades.length; }
+  function startedBatchCount() { return state.batches + state.activeBatches.length; }
+  function isFirstVisit() {
+    const hasDailyActivity = Object.values(state.dailyTasks).some(task => task && (safeInt(task.progress) > 0 || task.claimed === true));
+    return !state.joinedAt && state.balance === 0 && state.score === 0 && state.lifetimeDumplings === 0
+      && state.batches === 0 && state.activeBatches.length === 0 && state.upgrades.length === 0 && totalUpgradeLevels() === 0
+      && state.streakCurrent === 0 && state.streakBest === 0 && !state.streakLastVisitDate && !state.loginRewardDate
+      && state.streakRewardClaims.length === 0 && state.taskBatches === 0 && !state.taskClaimedOn
+      && state.taskPotsUsed.length === 0 && state.potCollections[1] === 0 && state.potCollections[2] === 0
+      && state.levelClaims.length === 0 && state.achievements.length === 0 && !state.lastBatchAt && !state.referralCode
+      && !hasDailyActivity;
+  }
+  function completedDailyTaskCount() { return rules.completedDailyTaskCount(dailyTaskSet(), state.dailyDate === nowDay()); }
   function ensureAchievements() {
     const unlocked = [];
     for (const definition of achievementDefinitions) if (definition.achieved() && !state.achievements.includes(definition.id)) { state.achievements.push(definition.id); unlocked.push(definition); }
-    if (unlocked.length) saveLocalState();
+    if (unlocked.length) { unlocked.forEach(item => achievementAnimationKinds.set(item.id, 'unlocked')); saveLocalState(); }
     return unlocked;
   }
   function scheduleAchievementNotice(unlocked) {
@@ -359,17 +426,19 @@
       const cost = maxed ? 0 : rules.upgradeCost(item, level);
       const enough = state.balance >= cost;
       const buttonLabel = maxed ? 'MAX LEVEL' : enough ? `Upgrade · ${cost} dumplings` : `Need ${cost} dumplings`;
-      return `<article class="upgrade-card level-card"><div class="upgrade-art level-upgrade-art">${kitchenUpgradeIcon(item.id)}</div><div class="upgrade-copy"><div class="upgrade-title-row"><h2>${item.name}</h2><span class="level-pill">Lv. ${level}/${item.maxLevel}</span></div><p>${item.description}</p><small class="upgrade-effect">${item.effect(level)}${!maxed ? ` · Next: ${item.effect(level + 1)}` : ' · Max level reached'}</small><small class="upgrade-affordability">${maxed ? 'Fully upgraded' : enough ? 'Ready to upgrade' : `You have ${state.balance} dumplings`}</small></div><button class="upgrade-button" data-level-upgrade="${item.id}" type="button" ${maxed || !enough ? 'disabled' : ''}>${buttonLabel}</button></article>`;
+      const affordability = maxed ? 'Maximum level reached' : enough ? 'Enough dumplings to upgrade' : `Need ${cost - state.balance} more · You have ${state.balance}`;
+      return `<article class="upgrade-card level-card ${maxed ? 'maxed' : ''}" data-upgrade-id="${item.id}"><div class="upgrade-art level-upgrade-art">${kitchenUpgradeIcon(item.id)}</div><div class="upgrade-copy"><div class="upgrade-title-row"><h2>${item.name}</h2><span class="level-pill">Lv. ${level}/${item.maxLevel}</span></div><p>${item.description}</p><div class="upgrade-level-track" role="progressbar" aria-label="${item.name} level" aria-valuemin="0" aria-valuemax="${item.maxLevel}" aria-valuenow="${level}"><span style="width:${level / item.maxLevel * 100}%"></span></div><small class="upgrade-effect"><span>Current</span><b>${item.effect(level)}</b></small>${maxed ? `<small class="upgrade-affordability">${affordability}</small>` : `<small class="upgrade-next-effect"><span>Next · Lv. ${level + 1}</span><b>${item.effect(level + 1)}</b></small><small class="upgrade-affordability ${enough ? 'can-afford' : 'cannot-afford'}">${affordability}</small>`}</div><button class="upgrade-button" data-level-upgrade="${item.id}" type="button" aria-label="${buttonLabel}" ${maxed || !enough ? 'disabled' : ''}>${buttonLabel}</button></article>`;
     }).join('');
     const legacy = [
-      { id:'herb-pot', name:'Fresh herb pots', desc:'+2 dumplings with every collected batch.', effect:'+2 dumplings / batch', cost:20 },
-      { id:'blue-tile', name:'Blue kitchen tiles', desc:'Keep your original decorative upgrade.', effect:'Kitchen decoration', cost:35 },
-      { id:'wooden-spoon', name:'Carved wooden spoon', desc:'+3 dumplings and a tiny cook-time bonus.', effect:'+3 dumplings / batch', cost:50 },
+      { id:'herb-pot', name:'Fresh herb pots', desc:'+2 dumplings with every collected batch.', effect:'+2 dumplings / batch', cost:100 },
+      { id:'blue-tile', name:'Blue kitchen tiles', desc:'Keep your original decorative upgrade.', effect:'Kitchen decoration', cost:50 },
+      { id:'wooden-spoon', name:'Carved wooden spoon', desc:'+3 dumplings and a tiny cook-time bonus.', effect:'+3 dumplings / batch', cost:200 },
       ...rules.DECORATION_DEFINITIONS.map(item => ({ ...item, desc:item.description }))
     ].map(item => {
       const owned = state.upgrades.includes(item.id);
       const equipped = state.equipped.includes(item.id);
-      return `<article class="upgrade-card legacy-card ${equipped ? 'equipped' : ''}"><div class="upgrade-art decor-upgrade-art decor-icon-${item.id}">${legacyUpgradeIcon(item.id)}</div><div class="upgrade-copy"><h2>${item.name}</h2><p>${item.desc}</p><small class="upgrade-effect">${item.effect}</small></div><button class="upgrade-button" data-upgrade="${item.id}" type="button" ${!owned && state.balance < item.cost ? 'disabled' : ''}>${owned ? equipped ? 'REMOVE' : 'EQUIP' : `Get · ${item.cost} dumplings`}</button></article>`;
+      const actionLabel = owned ? equipped ? 'REMOVE' : 'EQUIP' : `Get · ${item.cost} dumplings`;
+      return `<article class="upgrade-card legacy-card ${equipped ? 'equipped' : ''}"><div class="upgrade-art decor-upgrade-art decor-icon-${item.id}">${legacyUpgradeIcon(item.id)}</div><div class="upgrade-copy"><h2>${item.name}</h2><p>${item.desc}</p><small class="upgrade-effect">${item.effect}</small><small class="upgrade-affordability ${owned ? 'can-afford' : state.balance >= item.cost ? 'can-afford' : 'cannot-afford'}">${owned ? equipped ? 'Owned · equipped' : 'Owned · stored' : state.balance >= item.cost ? `Cost · ${item.cost} dumplings` : `Need ${item.cost - state.balance} more · You have ${state.balance}`}</small></div><button class="upgrade-button" data-upgrade="${item.id}" type="button" aria-label="${actionLabel}" ${!owned && state.balance < item.cost ? 'disabled' : ''}>${actionLabel}</button></article>`;
     }).join('');
     container.innerHTML = `<div class="upgrade-section-label">Kitchen upgrades <span>Spend dumplings</span></div>${cards}<div class="upgrade-section-label legacy-label">Kitchen decorations <span>Buy, equip, or remove</span></div>${legacy}`;
   }
@@ -396,14 +465,7 @@
     $('claimStreakButton').textContent = canClaimToday ? 'Claim reward' : clockBehind ? 'Check device date' : rewardClaimedToday ? 'Reward received' : 'Visit today';
     $('claimStreakButton').classList.toggle('streak-reward-claimed', rewardClaimedToday && !clockBehind);
     updateStreakCountdown();
-    const tasks = [
-      { id:'login', title:'Visit the kitchen', description:'Daily visit recorded. Claim your streak reward above.', reward:0, progress:state.dailyTasks.login.progress, claimed:state.dailyTasks.login.claimed, goal:1, auto:true },
-      { id:'cook', title:'Start a batch', description:'Put a pot of dumplings on the stove.', reward:rules.DAILY_TASK_REWARDS.cook, progress:state.dailyTasks.cook.progress, claimed:state.dailyTasks.cook.claimed, goal:1 },
-      { id:'collect', title:'Collect a fresh batch', description:'Finish cooking and collect one batch today.', reward:5, progress:state.dailyTasks.collect.progress, claimed:state.dailyTasks.collect.claimed, goal:1 },
-      { id:'collect-dumplings', title:'Gather 30 dumplings', description:'Collect at least 30 dumplings from finished batches today.', reward:10, progress:state.dailyTasks['collect-dumplings'].progress, claimed:state.dailyTasks['collect-dumplings'].claimed, goal:30 },
-      { id:'upgrade', title:'Improve your kitchen', description:'Buy one kitchen upgrade today.', reward:rules.DAILY_TASK_REWARDS.upgrade, progress:state.dailyTasks.upgrade.progress, claimed:state.dailyTasks.upgrade.claimed, goal:1 }
-    ];
-    if (capacity() === 2) tasks.push({ id:'two-pots', title:'Use both pots', description:'Start one cooking batch in each pot today.', reward:5, progress:state.dailyTasks['two-pots'].progress, claimed:state.dailyTasks['two-pots'].claimed, goal:1 });
+    const tasks = [{ id:'login', title:'Visit the kitchen', description:'Daily visit recorded. Claim your streak reward above.', reward:0, progress:state.dailyTasks.login.progress, claimed:state.dailyTasks.login.claimed, goal:1, auto:true }, ...dailyTaskSet()];
     const nextLevel = Array.from({ length: 9 }, (_, index) => index + 2).find(level => !state.levelClaims.includes(level));
     if (nextLevel) {
       const threshold = rules.LEVEL_THRESHOLDS[nextLevel - 1];
@@ -418,12 +480,56 @@
     }).join('');
     $('taskDot').hidden = !tasks.some(task => task.progress >= task.goal && !task.claimed && !task.auto);
   }
+  function dailyTaskSet() {
+    const variant = rules.dailyTaskVariant(state.dailyTaskVariant);
+    const progress = id => rules.dailyTaskProgress(id, state.dailyTaskVariant, state.dailyTasks);
+    const collectTask = variant.collectMode === 'start-and-collect'
+      ? { id:'collect', title:'Keep the kitchen rhythm', description:'Start a batch and collect a finished batch today.', reward:5, progress:progress('collect'), claimed:state.dailyTasks.collect.claimed, goal:variant.collectGoal }
+      : { id:'collect', title:variant.collectGoal > 1 ? 'Collect two fresh batches' : 'Collect a fresh batch', description:`Finish cooking and collect ${variant.collectGoal > 1 ? 'two batches' : 'one batch'} today.`, reward:5, progress:progress('collect'), claimed:state.dailyTasks.collect.claimed, goal:variant.collectGoal };
+    const dumplingTask = variant.dumplingMode === 'batch-count'
+      ? { id:'collect-dumplings', title:'Collect from two batches', description:'Collect finished batches twice today.', reward:10, progress:progress('collect-dumplings'), claimed:state.dailyTasks['collect-dumplings'].claimed, goal:variant.dumplingGoal }
+      : { id:'collect-dumplings', title:'Gather 30 dumplings', description:'Collect at least 30 dumplings from finished batches today.', reward:10, progress:progress('collect-dumplings'), claimed:state.dailyTasks['collect-dumplings'].claimed, goal:variant.dumplingGoal };
+    const tasks = [
+      { id:'cook', title:variant.cookGoal > 1 ? 'Start two batches' : 'Start a batch', description:`Put ${variant.cookGoal > 1 ? 'two batches' : 'a batch'} of dumplings on the stove today.`, reward:rules.DAILY_TASK_REWARDS.cook, progress:progress('cook'), claimed:state.dailyTasks.cook.claimed, goal:variant.cookGoal },
+      collectTask,
+      dumplingTask,
+      { id:'upgrade', title:'Improve your kitchen', description:'Buy one kitchen upgrade or decoration today.', reward:rules.DAILY_TASK_REWARDS.upgrade, progress:progress('upgrade'), claimed:state.dailyTasks.upgrade.claimed, goal:1 }
+    ];
+    const twoPotTask = state.dailyTasks['two-pots'];
+    if (capacity() === 2 || twoPotTask.progress >= 1 || twoPotTask.claimed) tasks.push({ id:'two-pots', title:'Use both pots', description:'Start one cooking batch in each pot today.', reward:5, progress:progress('two-pots'), claimed:twoPotTask.claimed, goal:1 });
+    return tasks;
+  }
   function renderAchievements() {
-    $('achievementList').innerHTML = achievementDefinitions.map(item => {
+    $('achievementList').innerHTML = achievementGroups.map(group => {
+      const cards = group.ids.map(id => {
+      const item = achievementDefinitions.find(definition => definition.id === id);
+      if (!item) return '';
       const unlocked = state.achievements.includes(item.id);
-      const progress = Math.min(item.goal, item.progress());
-      return `<article class="achievement-card ${unlocked ? 'unlocked' : ''}"><span class="achievement-icon">${unlocked ? '✦' : '○'}</span><div><h3>${item.title}</h3><p>${item.description}</p><small class="achievement-progress">${unlocked ? 'Milestone earned' : `${progress.toLocaleString('en-US')} / ${item.goal.toLocaleString('en-US')}`}</small></div><small>${unlocked ? 'UNLOCKED' : 'LOCKED'}</small></article>`;
+      const claimed = state.achievementClaims.includes(item.id);
+      const progress = Math.max(0, Math.min(item.goal, safeInt(item.progress())));
+      const status = !unlocked ? 'LOCKED' : claimed ? 'REWARD CLAIMED' : 'REWARD READY';
+      const animation = achievementAnimationKinds.get(item.id);
+      const action = !unlocked
+        ? '<button class="achievement-claim" type="button" disabled>Locked</button>'
+        : claimed
+          ? '<button class="achievement-claim" type="button" disabled>Claimed</button>'
+          : `<button class="achievement-claim" type="button" data-claim-achievement="${item.id}">Claim +${item.reward}</button>`;
+      return `<article class="achievement-card ${unlocked ? 'unlocked' : ''} ${unlocked && !claimed ? 'reward-ready' : ''} ${claimed ? 'claimed' : ''} ${animation ? `achievement-${animation}` : ''}"><span class="achievement-icon" aria-hidden="true">${unlocked ? '✦' : '○'}</span><div class="achievement-copy"><h3>${item.title}</h3><p>${item.description}</p><small class="achievement-condition">${item.condition}</small><small class="achievement-progress">${progress.toLocaleString('en-US')} / ${item.goal.toLocaleString('en-US')}</small><small class="achievement-reward">Reward: ${item.reward} dumplings</small></div><small class="achievement-status">${status}</small>${action}</article>`;
+      }).join('');
+      return `<section class="achievement-group" aria-label="${group.title}"><div class="achievement-group-heading"><h3>${group.title}</h3><small>${group.ids.filter(id => state.achievements.includes(id)).length}/${group.ids.length} unlocked</small></div><div class="achievement-group-cards">${cards}</div></section>`;
     }).join('');
+    achievementAnimationKinds.clear();
+  }
+  function claimAchievement(id) {
+    const definition = achievementDefinitions.find(item => item.id === id);
+    const claim = rules.prepareAchievementClaim(state, definition);
+    if (!claim) return false;
+    state.achievementClaims = claim.achievementClaims;
+    addDumplings(claim.amount, false);
+    achievementAnimationKinds.set(id, 'claimed');
+    saveState(); render();
+    toast(`Achievement reward received: +${claim.amount} dumplings.`);
+    return true;
   }
   function updateBatchFields() {
     const batches = state.activeBatches;
@@ -459,16 +565,16 @@
         dumplings.style.opacity = isReady ? '1' : '0';
       }
       if (steam) {
-        steam.style.display = isReady ? 'inline' : 'none';
-        steam.style.visibility = isReady ? 'visible' : 'hidden';
+        steam.style.display = isCooking || isReady ? 'inline' : 'none';
+        steam.style.visibility = isCooking || isReady ? 'visible' : 'hidden';
       }
       const button = pot === 1 ? $('cookButton') : $('cookButton2');
       const label = pot === 1 ? $('buttonText') : $('buttonText2');
       if (pot === 2) button.hidden = !secondUnlocked;
-      if (secondUnlocked) label.textContent = isReady ? `Collect Pot ${pot}` : isCooking ? `Cooking · ${formatTime(batch.endsAt - Date.now())}` : `Start Pot ${pot}`;
+      if (secondUnlocked) label.textContent = isReady ? `Collect Pot ${pot}` : isCooking ? `P${pot} · ${formatTime(batch.endsAt - Date.now())}` : `Start Pot ${pot}`;
       else if (pot === 1) label.textContent = isReady ? 'Collect dumplings' : isCooking ? `Cooking · ${formatTime(batch.endsAt - Date.now())}` : 'Start cooking';
       button.disabled = isCooking || (pot === 2 && !secondUnlocked);
-      button.setAttribute('aria-label', isReady ? `Collect dumplings from pot ${pot}` : isCooking ? `Pot ${pot} is cooking` : `Start cooking in pot ${pot}`);
+      button.setAttribute('aria-label', isReady ? `Collect dumplings from pot ${pot}` : isCooking ? `Pot ${pot} is cooking. Time remaining ${formatTime(batch.endsAt - Date.now())}` : `Start cooking in pot ${pot}`);
     }
     $('cookActions').classList.toggle('two-pots', secondUnlocked);
     $('gameCard').classList.toggle('cooking', batches.some(batch => Date.now() < batch.endsAt));
@@ -496,6 +602,16 @@
     $('profileBalance').textContent = state.balance.toLocaleString('en-US');
     $('profileScore').textContent = state.score.toLocaleString('en-US');
     $('profileBatches').textContent = state.batches.toLocaleString('en-US');
+    $('profileLifetimeDumplings').textContent = state.lifetimeDumplings.toLocaleString('en-US');
+    $('profileStartedBatches').textContent = startedBatchCount().toLocaleString('en-US');
+    $('profileCurrentStreak').textContent = state.streakCurrent.toLocaleString('en-US');
+    $('profileBestStreak').textContent = state.streakBest.toLocaleString('en-US');
+    $('profileDailyTasksCompleted').textContent = completedDailyTaskCount().toLocaleString('en-US');
+    $('profileAchievementsCount').textContent = achievementDefinitions.filter(item => state.achievements.includes(item.id)).length.toLocaleString('en-US');
+    $('profileAchievementClaimsCount').textContent = achievementDefinitions.filter(item => state.achievementClaims.includes(item.id)).length.toLocaleString('en-US');
+    $('profileStoveLevel').textContent = state.upgradeLevels['good-stove'].toLocaleString('en-US');
+    $('profilePotLevel').textContent = state.upgradeLevels['large-pot'].toLocaleString('en-US');
+    $('profileRecipeLevel').textContent = state.upgradeLevels['grandma-recipe'].toLocaleString('en-US');
     $('profileKitchenLevel').textContent = rules.playerLevel(state.score);
     $('profileUpgradeCount').textContent = totalUpgradeLevels() + state.upgrades.length;
     $('joinedDate').textContent = state.joinedAt ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(state.joinedAt)) : 'Today';
@@ -522,7 +638,9 @@
       state.taskPotsUsed = [...new Set([...state.taskPotsUsed, pot])];
       if (state.taskPotsUsed.includes(1) && state.taskPotsUsed.includes(2)) state.dailyTasks['two-pots'].progress = 1;
     }
+    const unlocked = ensureAchievements();
     saveState(); render(); toast('The pot is on. See you when it is ready!');
+    scheduleAchievementNotice(unlocked);
     return true;
   }
   function syncLegacyBatchFields() {
@@ -534,6 +652,7 @@
   function collectBatch(id) {
     const batch = state.activeBatches.find(item => item.id === id);
     if (!batch || Date.now() < batch.endsAt) return false;
+    playDumplingCollection(batch.pot);
     const oldBonus = (state.equipped.includes('herb-pot') ? 2 : 0) + (state.equipped.includes('wooden-spoon') ? 3 : 0);
     const reward = rules.batchDumplingReward(10 + Math.floor(Math.random() * 6), state.upgradeLevels, oldBonus);
     addDumplings(reward);
@@ -541,6 +660,7 @@
     state.taskBatches++;
     markTaskProgress('collect');
     markTaskProgress('collect-dumplings', reward);
+    markTaskProgress('collect-two');
     state.potCollections[batch.pot] = Math.min(1_000_000, state.potCollections[batch.pot] + 1);
     state.lastBatchReward = { dumplings: reward };
     state.lastBatchAt = new Date().toISOString();
@@ -550,6 +670,18 @@
     toast(`Collected ${reward} dumplings.`);
     scheduleAchievementNotice(unlocked);
     return true;
+  }
+  function playDumplingCollection(pot) {
+    const potArt = $('kitchenArt').querySelector(pot === 1 ? '.main-pot' : '.second-pot-art');
+    const dumplings = potArt?.querySelector('.dumplings');
+    if (!dumplings) return;
+    const effect = dumplings.cloneNode(true);
+    effect.removeAttribute('class');
+    effect.classList.add('dumplings-collect-fx');
+    effect.setAttribute('aria-hidden', 'true');
+    effect.style.visibility = 'visible';
+    potArt.append(effect);
+    setTimeout(() => effect.remove(), 560);
   }
   function usePot(pot) {
     const batch = batchForPot(pot);
@@ -582,7 +714,7 @@
     }
     const legacyButton = event.target.closest('[data-upgrade]');
     if (!legacyButton) return;
-    const item = { 'herb-pot': ['Fresh herb pots',20], 'blue-tile': ['Blue kitchen tiles',35], 'wooden-spoon': ['Carved wooden spoon',50], 'second-pot': ['Second Pot',1000] }[legacyButton.dataset.upgrade];
+    const item = { 'herb-pot': ['Fresh herb pots',100], 'blue-tile': ['Blue kitchen tiles',50], 'wooden-spoon': ['Carved wooden spoon',200], 'second-pot': ['Second Pot',1500] }[legacyButton.dataset.upgrade];
     if (!item) return;
     const id = legacyButton.dataset.upgrade;
     if (state.upgrades.includes(id)) {
@@ -609,11 +741,15 @@
       saveState(); render(); toast(`Level ${level} reward: +${reward} dumplings.`);
       return;
     }
-    const rewards = { cook: rules.DAILY_TASK_REWARDS.cook, upgrade: rules.DAILY_TASK_REWARDS.upgrade, collect: 5, 'collect-dumplings': 10, 'two-pots': 5 };
-    if (!task || !rules.taskClaimAllowed({ ...task, goal: id === 'collect-dumplings' ? 30 : 1 }) || !rewards[id]) return;
-    task.claimed = true; addDumplings(rewards[id]);
+    const dailyDefinition = dailyTaskSet().find(item => item.id === id);
+    if (state.dailyDate !== nowDay() || !task || !dailyDefinition || !rules.taskClaimAllowed({ ...dailyDefinition, claimed: task.claimed })) return;
+    task.claimed = true; addDumplings(dailyDefinition.reward);
     if (id === 'cook') { state.taskClaimedOn = nowDay(); state.taskBalanceRewardVersion = 1; }
-    saveState(); render(); toast(`Daily task complete: +${rewards[id]} dumplings.`);
+    const unlocked = ensureAchievements(); saveState(); render(); toast(`Daily task complete: +${dailyDefinition.reward} dumplings.`); scheduleAchievementNotice(unlocked);
+  });
+  $('achievementList').addEventListener('click', event => {
+    const button = event.target.closest('[data-claim-achievement]');
+    if (button) claimAchievement(button.dataset.claimAchievement);
   });
   $('claimStreakButton').addEventListener('click', claimStreakReward);
   document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => {
@@ -622,25 +758,12 @@
     document.querySelectorAll('.screen').forEach(screen => screen.classList.toggle('active', screen.dataset.screen === tab));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }));
-  const THEME_KEY = 'pelmeni-clicker-theme';
-  function applyTheme(theme, persist = false) {
-    const scheme = theme === 'light' ? 'light' : 'dark';
-    document.body.dataset.theme = scheme;
-    document.documentElement.style.colorScheme = scheme;
-    const button = $('themeToggle');
-    if (button) {
-      button.textContent = scheme === 'dark' ? '☼ Light' : '☾ Dark';
-      button.setAttribute('aria-label', `Switch to ${scheme === 'dark' ? 'light' : 'dark'} theme`);
-      button.setAttribute('aria-pressed', String(scheme === 'light'));
-    }
-    if (persist) { try { localStorage.setItem(THEME_KEY, scheme); } catch (error) { console.warn('[Pelmeni Clicker] Theme preference could not be saved.', error); } }
-  }
   try {
     if (typeof telegramWebApp?.ready === 'function') telegramWebApp.ready();
     if (typeof telegramWebApp?.expand === 'function') telegramWebApp.expand();
-    applyTheme(localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark');
+    document.body.dataset.theme = 'dark';
+    document.documentElement.style.colorScheme = 'dark';
   } catch (error) { console.warn('[Pelmeni Clicker] Telegram theme setup skipped.', error); }
-  $('themeToggle').addEventListener('click', () => applyTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark', true));
   initializeState();
   setInterval(() => {
     if (!stateReady) return;

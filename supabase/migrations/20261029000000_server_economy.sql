@@ -743,7 +743,7 @@ BEGIN
 
   ELSIF p_action = 'purchase_upgrade' THEN
     v_id := p_args ->> 'upgradeId';
-    v_base := CASE v_id WHEN 'good-stove' THEN 100 WHEN 'large-pot' THEN 150 WHEN 'grandma-recipe' THEN 200 ELSE NULL END;
+    v_base := CASE v_id WHEN 'good-stove' THEN 15 WHEN 'large-pot' THEN 75 WHEN 'grandma-recipe' THEN 100 ELSE NULL END;
     IF v_base IS NULL THEN
       v_result := jsonb_build_object('status', 'rejected', 'error', 'unknown_upgrade');
     ELSIF jsonb_typeof(v_levels) <> 'object' THEN
@@ -767,9 +767,11 @@ BEGIN
         IF v_level >= 10 THEN
           v_result := jsonb_build_object('status', 'rejected', 'error', 'upgrade_max_level');
         ELSE
-          v_cost := CASE WHEN v_id = 'good-stove'
-            THEN (ARRAY[15,20,30,40,55,70,90,115,145,180]::bigint[])[v_level + 1]
-            ELSE round(v_base * power(1.5::numeric, v_level) / 1.5)::bigint END;
+          v_cost := CASE v_id
+            WHEN 'good-stove' THEN (ARRAY[15,25,40,60,90,130,180,250,350,500]::bigint[])[v_level + 1]
+            WHEN 'large-pot' THEN (ARRAY[75,125,200,300,450,650,900,1200,1550,2000]::bigint[])[v_level + 1]
+            WHEN 'grandma-recipe' THEN (ARRAY[100,150,250,400,600,900,1250,1750,2300,3000]::bigint[])[v_level + 1]
+          END;
           IF COALESCE((v_state ->> 'balance')::bigint, 0) < v_cost THEN
             v_result := jsonb_build_object('status', 'rejected', 'error', 'insufficient_balance', 'cost', v_cost);
           ELSE
@@ -786,7 +788,7 @@ BEGIN
 
   ELSIF p_action = 'purchase_decoration' THEN
     v_id := p_args ->> 'decorationId';
-    v_cost := CASE v_id WHEN 'herb-pot' THEN 20 WHEN 'blue-tile' THEN 35 WHEN 'wooden-spoon' THEN 50 WHEN 'second-pot' THEN 1000 ELSE NULL END;
+    v_cost := CASE v_id WHEN 'herb-pot' THEN 100 WHEN 'blue-tile' THEN 50 WHEN 'wooden-spoon' THEN 200 WHEN 'second-pot' THEN 1500 ELSE NULL END;
     IF v_cost IS NULL THEN
       v_result := jsonb_build_object('status', 'rejected', 'error', 'unknown_decoration');
     ELSIF v_owned ? v_id THEN

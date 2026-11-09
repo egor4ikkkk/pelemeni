@@ -8,8 +8,6 @@
 body{background:var(--tg-bg,var(--bg));color:var(--tg-text,var(--white));overflow-x:hidden}
 .game-card,.stat-card,.upgrade-card,.task-card,.season-banner,.referral-card,.profile-card,.achievement-card,.note-card{background:linear-gradient(145deg,#123553,#0b2138)}
 .game-card{background:linear-gradient(155deg,#102d49,#091b30 83%)}.stat-card{box-shadow:0 7px 20px #020b1430}.upgrade-card,.task-card{box-shadow:inset 0 1px #ffffff08}.season-banner{background:linear-gradient(100deg,#153a59,#102944)}
-.app-shell[aria-busy="true"]{min-height:100svh}
-.app-shell[aria-busy="true"]:after{content:"Loading your kitchen…";position:fixed;z-index:10;inset:45% 0 auto;text-align:center;color:#9dc5dc;font-size:12px;font-weight:800;pointer-events:none}
 .topbar{gap:8px}.sync-status{max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:6px 9px;border:1px solid #284c68;border-radius:99px;background:#102b43;color:#9db6c8;font-size:8px;font-weight:800}
 .topbar-actions{display:flex;align-items:center;gap:7px}.theme-toggle{min-height:32px;padding:5px 9px;border:1px solid #2a5877;border-radius:10px;background:#102d49;color:#d9effc;font-size:9px;font-weight:800;white-space:nowrap;cursor:pointer}.theme-toggle:active{transform:scale(.97)}
 .sync-status[data-status="ok"]{color:#88e1b5;border-color:#2d705d}.sync-status[data-status="error"]{color:#ffc276;border-color:#806033}.sync-status[data-status="loading"]{color:#91cffa}
@@ -26,6 +24,8 @@ body[data-theme="light"] .brand{color:#18354c}body[data-theme="light"] .app-shel
 body[data-theme="light"] .game-card{background:#fff;border-color:#cbdce7}body[data-theme="light"] .cook-panel{color:#18354c}body[data-theme="light"] .cook-state,body[data-theme="light"] .task-copy p,body[data-theme="light"] .page-heading p,body[data-theme="light"] .upgrade-copy p,body[data-theme="light"] .profile-caption{color:#5f7688}body[data-theme="light"] .bottom-nav{background:#f8fbfdf2;border-color:#d1dee7}body[data-theme="light"] .season-banner{background:#e7f1f7;border-color:#d0dfe8}body[data-theme="light"] .season-banner strong{color:#24425a}body[data-theme="light"] .upgrade-balance{color:#52697b}body[data-theme="light"] .achievement-card p{color:#60788b}
 @media(max-width:380px){.app-shell{padding-left:12px;padding-right:12px}.welcome-row h1{font-size:23px}.balance-pill{padding:5px 7px}.upgrade-card{gap:8px;padding:10px}.upgrade-art{width:41px;height:41px}.task-card{padding:11px;gap:8px}.task-reward{min-width:64px}.sync-status{font-size:7px}}
 body:not([data-theme="light"]){background:radial-gradient(ellipse at 52% -15%,#16456c 0,transparent 52%),#07182c}
+.profile-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}.profile-detail-card{min-width:0;display:grid;gap:4px;padding:11px 12px;border:1px solid #244d6c;border-radius:13px;background:linear-gradient(145deg,#123553,#0b2138)}.profile-detail-card>small{color:#8eabc0;font-size:7px;font-weight:900;letter-spacing:.7px}.profile-detail-card>strong{font-size:17px;line-height:1.2;font-variant-numeric:tabular-nums}.profile-detail-card>strong small{color:#8fa9bd;font-size:9px}.profile-detail-card>span{color:#91aabe;font-size:8px;line-height:1.35}.profile-detail-card>span b{color:#d9e8f2}.profile-upgrade-levels{grid-column:1/-1}.profile-upgrade-levels>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:3px}.profile-upgrade-levels>div span{padding:7px 5px;border:1px solid #254963;border-radius:8px;background:#0c2339;color:#a9bfd0;text-align:center;font-size:8px}.profile-upgrade-levels>div b{color:#ffcf69;font-size:10px}.achievement-group{display:grid;gap:6px}.achievement-group-heading{display:flex;align-items:center;justify-content:space-between;padding:5px 2px 1px}.achievement-group-heading h3{margin:0;color:#c8dceb;font-size:10px;font-weight:900}.achievement-group-heading small{color:#829db1;font-size:7px;font-weight:800}.achievement-group-cards{display:grid;gap:7px}
+.achievement-card{grid-template-columns:34px minmax(0,1fr) auto;align-items:start;transition:border-color .2s ease,background-color .2s ease,transform .2s ease}.achievement-copy{min-width:0;display:grid;gap:3px}.achievement-card .achievement-condition{color:#b6c9d8;font-size:8px;line-height:1.4}.achievement-card .achievement-progress{font-size:8px;color:#8fb7ce}.achievement-card .achievement-reward{margin-top:2px;color:#ffd579;font-size:8px;font-weight:900}.achievement-status{padding-top:3px;text-align:right;white-space:nowrap}.achievement-claim{grid-column:2/4;justify-self:start;min-height:32px;margin-top:4px;padding:6px 10px;border:1px solid #397b9d;border-radius:9px;background:#174b6d;color:#e8f7ff;font-size:9px;font-weight:900;cursor:pointer;transition:transform .15s ease,background-color .15s ease,box-shadow .15s ease}.achievement-claim:not(:disabled):active{transform:scale(.96)}.achievement-claim:disabled{border-color:#29465d;background:#132b40;color:#7f96a8;cursor:default}.achievement-card.reward-ready{border-color:#b48638}.achievement-card.claimed{border-color:#39745f}.achievement-unlocked{animation:achievementUnlock .55s ease-out}.achievement-claimed{animation:achievementClaim .38s ease-out}@keyframes achievementUnlock{0%{transform:scale(.98);box-shadow:0 0 0 0 #f3c95b00}45%{transform:scale(1.015);box-shadow:0 0 0 4px #f3c95b38}100%{transform:scale(1);box-shadow:0 0 0 0 #f3c95b00}}@keyframes achievementClaim{0%{transform:scale(.98)}55%{transform:scale(1.012)}100%{transform:scale(1)}}@media(max-width:380px){.achievement-card{grid-template-columns:30px minmax(0,1fr) auto;gap:7px;padding:9px}.achievement-status{font-size:6px!important}.achievement-icon{width:29px;height:29px}.achievement-claim{grid-column:2/4}}@media(prefers-reduced-motion:reduce){.achievement-unlocked,.achievement-claimed{animation:none}.achievement-claim{transition:none}}
 .kitchen-art{height:320px;background:radial-gradient(ellipse at 50% 70%,#785033 0,#422e24 23%,#16283a 54%,#0c2137 100%)}
 .kitchen-svg{height:316px}
 .scene-glow{opacity:.3;filter:blur(42px)}
@@ -148,6 +148,16 @@ body[data-theme="light"] :focus-visible{outline-color:#087bad}
 @keyframes burnerFlicker{from{opacity:.68;filter:drop-shadow(0 0 2px #36bfff);transform:translateY(0) scaleY(.92)}to{opacity:1;filter:drop-shadow(0 0 5px #36bfff);transform:translateY(-1px) scaleY(1.04)}}
 @media(prefers-reduced-motion:reduce){.main-pot.burner-on .burner-flame,.second-pot-art.burner-on .burner-flame{animation:none;opacity:.85;transform:none}.pot-one-cooking .main-pot .pot-lid,.pot-two-cooking .second-pot-art .pot-lid{animation:none!important}.pot-one-ready .main-pot .steam-stream,.pot-two-ready .second-pot-art .steam-stream{animation:none!important;transform:none!important;opacity:.6}}
 
+/* Subtle steam while covered, then a clearer plume once the batch is ready. */
+.pot-one-cooking .main-pot .steam-svg,.pot-two-cooking .second-pot-art .steam-svg{opacity:.48;filter:drop-shadow(0 0 3px #bfeaff)}
+.pot-one-cooking .main-pot .steam-stream,.pot-two-cooking .second-pot-art .steam-stream{opacity:.32;animation:steamBoilWisp 1.35s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.pot-one-cooking .main-pot .steam-stream-two,.pot-two-cooking .second-pot-art .steam-stream-two{animation-delay:-.45s}
+.pot-one-cooking .main-pot .steam-stream-three,.pot-two-cooking .second-pot-art .steam-stream-three{animation-delay:-.9s}
+@keyframes steamBoilWisp{0%,100%{transform:translateY(2px) scale(.88);opacity:.12}50%{transform:translateY(-6px) scale(1.02);opacity:.48}}
+.dumplings-collect-fx{pointer-events:none;transform-box:fill-box;transform-origin:center;animation: dumplingsCollect .48s cubic-bezier(.2,.75,.3,1) forwards}
+@keyframes dumplingsCollect{0%{opacity:1;transform:translateY(0) scale(1)}45%{opacity:.96;transform:translateY(-13px) scale(1.08)}100%{opacity:0;transform:translateY(-31px) scale(.86)}}
+@media(prefers-reduced-motion:reduce){.pot-one-cooking .main-pot .steam-stream,.pot-two-cooking .second-pot-art .steam-stream{animation:none;transform:none;opacity:.3}.dumplings-collect-fx{animation-duration:.12s}}
+
 /* Responsive illustrated decoration icons and stronger light-theme separation. */
 .decor-upgrade-art{width:49px;height:49px;aspect-ratio:1;padding:5px;overflow:hidden;background:linear-gradient(145deg,#214e70,#123454)}
 .decor-upgrade-art svg{display:block;width:100%;height:100%;max-width:38px;max-height:38px;flex:none}
@@ -187,4 +197,56 @@ button,
 a,
 [role="button"]{
   touch-action:manipulation;
+}
+
+/* Keep the uninitialized game hidden until local/cloud state has rendered. */
+[hidden]{display:none!important}
+.loading-screen{position:fixed;z-index:20;inset:0;min-height:100svh;min-height:var(--tg-viewport-stable-height,100svh);display:grid;place-items:center;padding:calc(env(safe-area-inset-top,0px) + 24px) 20px calc(env(safe-area-inset-bottom,0px) + 32px);background:radial-gradient(ellipse at 50% 32%,#123b5b 0,#091d31 44%,#07182c 78%);color:#f3f8fc}
+.loading-content{width:min(100%,300px);display:grid;justify-items:center;gap:10px;padding:25px 20px;border:1px solid #285271;border-radius:22px;background:linear-gradient(145deg,#123553,#0b2138);box-shadow:0 18px 48px #020b1566;text-align:center}
+.loading-pot{width:64px;height:64px;display:grid;place-items:center;border:1px solid #3f7596;border-radius:20px;background:#17415f;color:#f4ce80}
+.loading-pot svg{width:46px;height:46px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.loading-content strong{font-size:16px;font-weight:900}
+.loading-content>span{color:#b3c9d9;font-size:13px;line-height:1.4}
+
+/* Upgrade cards show current progress, next effect, and exact affordability. */
+.level-card .upgrade-copy{align-self:stretch;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.upgrade-level-track{height:4px;margin:1px 0 2px;overflow:hidden;border-radius:999px;background:#1b3a53}
+.upgrade-level-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#35c9a1,#8be2bb);transition:width .25s ease}
+.upgrade-effect,.upgrade-next-effect{display:flex;flex-wrap:wrap;gap:4px 7px;align-items:baseline;margin-top:0;color:#ffda83;font-size:9px;line-height:1.35}
+.upgrade-effect span,.upgrade-next-effect span{color:#89a8bf;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.45px}
+.upgrade-effect b,.upgrade-next-effect b{font:inherit;font-weight:900}
+.upgrade-next-effect{color:#8fe0c4}
+.upgrade-affordability{margin-top:0;font-size:8px;line-height:1.35}
+.upgrade-affordability.can-afford{color:#8fe0c4}
+.upgrade-affordability.cannot-afford{color:#e8aa89}
+.level-card.maxed .upgrade-level-track span{background:linear-gradient(90deg,#f0c15c,#ffe39a)}
+.upgrade-button:disabled{cursor:not-allowed;opacity:.66}
+
+/* Mobile tap targets, compact readable text, and non-clipping pot timers. */
+.upgrade-button,.upgrade-card.equipped .upgrade-button,.legacy-card .upgrade-button{min-height:44px;padding:8px 10px;font-size:10px}
+.task-claim,.achievement-claim{min-height:44px;padding:8px 10px;font-size:10px}
+.nav-item{min-height:44px}
+.active-batch button{min-height:44px}
+.cook-actions.two-pots .primary-button{min-height:50px;height:auto;font-size:clamp(9px,2.8vw,11px);font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.cook-actions.two-pots .primary-button span:first-child{max-width:calc(100% - 18px);overflow:visible;text-overflow:clip;white-space:nowrap}
+.stat-card small,.profile-stats small{font-size:8px}
+.stat-tail{font-size:8px;color:#89a5ba}
+.task-copy p,.upgrade-copy p{font-size:10px;line-height:1.45;color:#b0c5d5}
+.task-copy>small,.upgrade-affordability{font-size:9px;line-height:1.4;color:#a9bfd0}
+.profile-detail-card>small{font-size:8px;color:#a1b8ca}
+.profile-detail-card>span{font-size:9px;color:#afc3d2}
+.achievement-card h3{font-size:11px}
+.achievement-card p,.achievement-card .achievement-condition,.achievement-card .achievement-progress,.achievement-card .achievement-reward{font-size:9px;line-height:1.4}
+.achievement-status{font-size:8px}
+.fine-print{font-size:9px;line-height:1.45;color:#91aabe}
+.timer-label{font-size:8px}
+.toast{width:max-content;max-width:calc(100vw - 24px);white-space:normal;overflow-wrap:anywhere;text-align:center;line-height:1.4;bottom:calc(env(safe-area-inset-bottom,0px) + 84px);}
+
+@media(max-width:380px){
+  .app-shell{padding-left:12px;padding-right:12px}
+  .cook-panel{padding-left:12px;padding-right:12px}
+  .cook-actions.two-pots{gap:7px}
+  .cook-actions.two-pots .primary-button{padding-left:5px;padding-right:5px}
+  .cook-actions.two-pots .primary-button span:first-child{max-width:calc(100% - 15px);font-size:9px}
+  .achievement-status{white-space:normal;max-width:62px}
 }
