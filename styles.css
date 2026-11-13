@@ -284,3 +284,14 @@ a,
   .pot-one-ready .main-pot .steam-stream,.pot-two-ready .second-pot-art .steam-stream{opacity:.6!important;transform:none!important}
   .dumplings-collect-fx{opacity:0!important}
 }
+
+/* Keep the cloud/local status fully readable in the narrow mobile header. */
+.topbar{gap:8px;min-width:0}
+.brand{min-width:0;flex:0 1 auto;white-space:nowrap}
+.topbar-actions{min-width:0;max-width:52%;flex:0 1 auto}
+.sync-status{display:block;min-width:0;max-width:100%;overflow:visible;overflow-wrap:anywhere;text-overflow:clip;white-space:normal;text-align:center;line-height:1.25}
+@media(max-width:360px){
+  .brand{gap:7px;font-size:10px;letter-spacing:.8px}
+  .brand-icon{width:32px;height:32px}
+  .sync-status{padding:5px 7px;font-size:7px}
+}

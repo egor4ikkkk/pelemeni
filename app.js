@@ -468,7 +468,7 @@
     $('claimStreakButton').textContent = canClaimToday ? 'Claim reward' : clockBehind ? 'Check device date' : rewardClaimedToday ? 'Reward received' : 'Visit today';
     $('claimStreakButton').classList.toggle('streak-reward-claimed', rewardClaimedToday && !clockBehind);
     updateStreakCountdown();
-    const tasks = [{ id:'login', title:'Visit the kitchen', description:'Daily visit recorded. Claim your streak reward above.', reward:0, progress:state.dailyTasks.login.progress, claimed:state.dailyTasks.login.claimed, goal:1, auto:true }, ...dailyTaskSet()];
+    const tasks = dailyTaskSet();
     const nextLevel = Array.from({ length: 9 }, (_, index) => index + 2).find(level => !state.levelClaims.includes(level));
     if (nextLevel) {
       const threshold = rules.LEVEL_THRESHOLDS[nextLevel - 1];
@@ -479,7 +479,7 @@
       const label = task.claimed ? task.auto ? 'Added today' : 'Collected' : complete ? 'Collect reward' : `${task.progress}/${task.goal}`;
       const progressPercent = Math.min(100, task.progress / task.goal * 100);
       const progressLabel = task.levelTask ? `${task.progress.toLocaleString('en-US')} / ${task.goal.toLocaleString('en-US')} total score` : complete ? task.claimed ? 'Reward collected' : 'Complete · reward ready' : `${task.progress.toLocaleString('en-US')} / ${task.goal.toLocaleString('en-US')}`;
-      return `<article class="task-card ${task.claimed || complete ? 'task-complete' : ''}"><div class="task-icon">${task.levelTask ? '★' : task.id === 'login' ? '↗' : task.id === 'cook' ? '♨' : task.id === 'upgrade' ? '✦' : '✓'}</div><div class="task-copy"><span class="task-tag">${task.levelTask ? 'LEVEL MILESTONE' : `DAILY · ${utcDateLabel()}`}</span><h2>${task.title}</h2><p>${task.description}</p><div class="task-progress"><span style="width:${progressPercent}%"></span></div><small>${progressLabel}</small></div><div class="task-reward"><b>${task.auto ? 'AUTO' : `+${task.reward}`}</b><small>${task.auto ? 'visit' : 'dumplings'}</small><button class="task-claim" type="button" data-claim-task="${task.id}" ${task.claimed || !complete || task.auto ? 'disabled' : ''}>${label}</button></div></article>`;
+      return `<article class="task-card ${task.claimed || complete ? 'task-complete' : ''}"><div class="task-icon">${task.levelTask ? '★' : task.id === 'cook' ? '♨' : task.id === 'upgrade' ? '✦' : '✓'}</div><div class="task-copy"><span class="task-tag">${task.levelTask ? 'LEVEL MILESTONE' : `DAILY · ${utcDateLabel()}`}</span><h2>${task.title}</h2><p>${task.description}</p><div class="task-progress"><span style="width:${progressPercent}%"></span></div><small>${progressLabel}</small></div><div class="task-reward"><b>${task.auto ? 'AUTO' : `+${task.reward}`}</b><small>${task.auto ? 'visit' : 'dumplings'}</small><button class="task-claim" type="button" data-claim-task="${task.id}" ${task.claimed || !complete || task.auto ? 'disabled' : ''}>${label}</button></div></article>`;
     }).join('');
     $('taskDot').hidden = !tasks.some(task => task.progress >= task.goal && !task.claimed && !task.auto);
   }
@@ -616,22 +616,16 @@
     $('profileBalance').textContent = state.balance.toLocaleString('en-US');
     $('profileScore').textContent = state.score.toLocaleString('en-US');
     $('profileBatches').textContent = state.batches.toLocaleString('en-US');
-    $('profileLifetimeDumplings').textContent = state.lifetimeDumplings.toLocaleString('en-US');
     $('profileStartedBatches').textContent = startedBatchCount().toLocaleString('en-US');
     $('profileCurrentStreak').textContent = state.streakCurrent.toLocaleString('en-US');
     $('profileBestStreak').textContent = state.streakBest.toLocaleString('en-US');
-    $('profileDailyTasksCompleted').textContent = completedDailyTaskCount().toLocaleString('en-US');
+    $('profileInvitedFriends').textContent = '0';
     $('profileAchievementsCount').textContent = achievementDefinitions.filter(item => state.achievements.includes(item.id)).length.toLocaleString('en-US');
     $('profileAchievementClaimsCount').textContent = achievementDefinitions.filter(item => state.achievementClaims.includes(item.id)).length.toLocaleString('en-US');
-    $('profileStoveLevel').textContent = state.upgradeLevels['good-stove'].toLocaleString('en-US');
-    $('profilePotLevel').textContent = state.upgradeLevels['large-pot'].toLocaleString('en-US');
-    $('profileRecipeLevel').textContent = state.upgradeLevels['grandma-recipe'].toLocaleString('en-US');
     $('profileKitchenLevel').textContent = rules.playerLevel(state.score);
     $('profileUpgradeCount').textContent = totalUpgradeLevels() + state.upgrades.length;
     $('joinedDate').textContent = state.joinedAt ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(state.joinedAt)) : 'Today';
     $('kitchenLevel').textContent = `PLAYER LEVEL ${rules.playerLevel(state.score)}`;
-    $('kitchenLevelBanner').textContent = `COZY KITCHEN · LEVEL ${rules.playerLevel(state.score)}`;
-    $('seasonTitle').textContent = state.lastBatchReward ? `Last batch · ${state.lastBatchReward.dumplings} dumplings` : 'Your kitchen story starts here';
     $('lastBatchText').textContent = state.lastBatchReward ? `Last batch: +${state.lastBatchReward.dumplings} dumplings.` : 'Your first batch is waiting to be cooked.';
     $('kitchenArt').classList.toggle('decor-herb-pot', state.equipped.includes('herb-pot'));
     $('kitchenArt').classList.toggle('decor-blue-tile', state.equipped.includes('blue-tile'));
