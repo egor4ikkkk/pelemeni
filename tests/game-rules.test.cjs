@@ -614,18 +614,26 @@ test('profile statistics read existing save fields and achievements remain group
   const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
-  assert.match(app, /\$\('profileLifetimeDumplings'\)\.textContent = state\.lifetimeDumplings/);
   assert.match(app, /\$\('profileStartedBatches'\)\.textContent = startedBatchCount\(\)/);
   assert.match(app, /\$\('profileCurrentStreak'\)\.textContent = state\.streakCurrent/);
   assert.match(app, /\$\('profileBestStreak'\)\.textContent = state\.streakBest/);
-  assert.match(app, /\$\('profileStoveLevel'\)\.textContent = state\.upgradeLevels\['good-stove'\]/);
+  assert.match(app, /\$\('profileInvitedFriends'\)\.textContent = '0'/);
   assert.match(app, /\$\('profileAchievementsCount'\).*achievementDefinitions\.filter/);
   assert.match(app, /\$\('profileAchievementClaimsCount'\).*achievementDefinitions\.filter/);
-  assert.match(app, /function completedDailyTaskCount\(\) \{ return rules\.completedDailyTaskCount\(dailyTaskSet\(\), state\.dailyDate === nowDay\(\)\); \}/);
-  assert.match(app, /\$\('profileDailyTasksCompleted'\)\.textContent = completedDailyTaskCount\(\)/);
-  assert.match(html, /id="profileBatches"/);
-  assert.match(html, /TRACKED PELMENI EARNED[\s\S]*Batches, streak &amp; daily tasks/);
-  for (const id of ['profileBalance','profileLifetimeDumplings','profileStartedBatches','profileBatches','profileCurrentStreak','profileBestStreak','profileDailyTasksCompleted','profileStoveLevel','profilePotLevel','profileRecipeLevel','profileAchievementsCount','profileAchievementClaimsCount']) assert.ok(html.includes(`id="${id}"`), `${id} should be rendered in the profile`);
+  const profile = html.slice(html.indexOf('id="screen-profile"'), html.indexOf('</section></main>'));
+  const detailGrid = profile.slice(profile.indexOf('class="profile-detail-grid"'), profile.indexOf('class="achievement-section"'));
+  assert.equal((detailGrid.match(/class="profile-detail-card/g) || []).length, 4, 'profile should show four compact detail cards');
+  assert.match(profile, /<small>DUMPLINGS<\/small><b id="profileBalance">/);
+  assert.match(profile, /<small>TOTAL SCORE<\/small><b id="profileScore">/);
+  assert.match(profile, /<small>COLLECTED BATCHES<\/small><b id="profileBatches">/);
+  assert.match(profile, /<small>PLAYER LEVEL<\/small><b id="profileKitchenLevel">/);
+  assert.match(profile, /<small>UPGRADE ITEMS<\/small><b id="profileUpgradeCount">/);
+  for (const id of ['profileStartedBatches','profileCurrentStreak','profileBestStreak','profileInvitedFriends','profileAchievementsCount','profileAchievementClaimsCount']) {
+    assert.ok(profile.includes(`id="${id}"`), `${id} should be rendered in the profile`);
+  }
+  assert.match(detailGrid, /<small>INVITED FRIENDS<\/small>[\s\S]*id="profileInvitedFriends"/);
+  assert.match(detailGrid, /Referral tracking is not active yet/);
+  assert.doesNotMatch(profile, /profileLifetimeDumplings|profileDailyTasksCompleted|KITCHEN UPGRADE LEVELS/);
   const start = app.indexOf('const achievementGroups = ');
   const end = app.indexOf('\n  ];', start) + 5;
   const groups = new Function(`return ${app.slice(start + 'const achievementGroups = '.length, end)};`)();
@@ -633,6 +641,28 @@ test('profile statistics read existing save fields and achievements remain group
   assert.equal(new Set(groups.flatMap(group => group.ids)).size, 25);
   assert.match(css, /\.profile-detail-grid\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(css, /@media\(max-width:380px\)/);
+});
+
+test('lifetimeDumplings remains saved, restored, and used by lifetime achievements', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  const serializeStart = app.indexOf('function serializeState() {');
+  const serializeEnd = app.indexOf('\n  }', serializeStart);
+  const serializeState = app.slice(serializeStart, serializeEnd);
+  const normalizeStart = app.indexOf('function normalizeState(saved) {');
+  const normalizeEnd = app.indexOf('\n  }', normalizeStart);
+  const normalizeState = app.slice(normalizeStart, normalizeEnd);
+  const definitionsStart = app.indexOf('const achievementDefinitions = [');
+  const definitionsEnd = app.indexOf('\n  ];', definitionsStart);
+  const achievementDefinitions = app.slice(definitionsStart, definitionsEnd);
+
+  assert.match(serializeState, /lifetimeDumplings:\s*state\.lifetimeDumplings/);
+  assert.match(normalizeState, /lifetimeDumplings:\s*Number\.isSafeInteger\(saved\.lifetimeDumplings\)\s*&&\s*saved\.lifetimeDumplings\s*>=\s*0\s*\?\s*saved\.lifetimeDumplings\s*:\s*safeInt\(saved\.balance\)/);
+  for (const threshold of ['100', '500', '1000', '5000', '10000']) {
+    assert.match(achievementDefinitions, new RegExp(`progress: \\(\\) => state\\.lifetimeDumplings, goal: ${threshold},`));
+    assert.match(achievementDefinitions, new RegExp(`achieved: \\(\\) => state\\.lifetimeDumplings >= ${threshold}`));
+  }
 });
 
 test('achievement groups are collapsible, default open for unclaimed rewards, and retain user toggles on rerender', () => {
@@ -741,4 +771,28 @@ test('legacy visit markers prevent an old profile from being classified as a fir
     { joinedAt: '2026-11-01T00:00:00.000Z' }
   ];
   for (const marker of oldVisitCases) assert.equal(loadIsFirstVisit({ ...base, ...marker }), false);
+});
+
+test('applyDailyState detects a first visit before advancing the streak', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+
+  const start = app.indexOf('function applyDailyState() {');
+  const end = app.indexOf('\n  }\n  const achievementDefinitions', start);
+
+  assert.ok(start >= 0 && end > start, 'applyDailyState should exist');
+
+  const body = app.slice(start, end);
+  const firstVisitIndex = body.indexOf('const firstVisit = isFirstVisit();');
+  const advanceStreakIndex = body.indexOf('rules.advanceStreak(');
+
+  assert.ok(firstVisitIndex >= 0, 'first-visit status should be captured');
+  assert.ok(advanceStreakIndex >= 0, 'streak should be advanced');
+  assert.ok(
+    firstVisitIndex < advanceStreakIndex,
+    'first-visit status must be captured before streak state changes'
+  );
+
+  assert.match(body, /if \(firstVisit && !state\.achievements\.includes\('first-visit'\)\)/);
 });

@@ -285,6 +285,17 @@ a,
   .dumplings-collect-fx{opacity:0!important}
 }
 
+/* Keep long screens scrollable above the fixed Telegram navigation on phones. */
+@media(max-width:559px){
+  body{min-height:100dvh}
+  .app-shell{min-height:var(--tg-viewport-stable-height,100dvh);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 116px);overflow:visible}
+  .bottom-nav{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
+  .task-icon{background:linear-gradient(145deg,#1b587b,#123957);color:#8bd2fa;border:1px solid #2f7198;box-shadow:inset 0 1px #ffffff12}
+  .task-icon svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .task-card{align-items:flex-start}
+  .task-reward{flex:0 0 68px}
+}
+
 /* Keep the cloud/local status fully readable in the narrow mobile header. */
 .topbar{gap:8px;min-width:0}
 .brand{min-width:0;flex:0 1 auto;white-space:nowrap}

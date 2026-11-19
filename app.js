@@ -280,6 +280,7 @@
   function applyDailyState() {
     const today = nowDay();
     if (rules.validUtcDay(state.dailyDate) && today < state.dailyDate) return;
+    const firstVisit = isFirstVisit();
     const previousStreakDate = state.streakLastVisitDate;
     const elapsedVisitDays = rules.validUtcDay(previousStreakDate) ? (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${previousStreakDate}T00:00:00Z`)) / 86_400_000 : null;
     const streak = rules.advanceStreak(state.streakCurrent, state.streakBest, previousStreakDate, today);
@@ -288,7 +289,6 @@
     state.streakLastVisitDate = streak.lastVisit;
     if (streak.changed && (!previousStreakDate || elapsedVisitDays > 1)) state.streakRunStartedDate = today;
     state.streakRunStartedDate ||= streak.lastVisit;
-    const firstVisit = isFirstVisit();
     if (state.dailyDate !== today) {
       state.dailyDate = today;
       state.dailyTasks = emptyDailyTasks();
@@ -479,9 +479,22 @@
       const label = task.claimed ? task.auto ? 'Added today' : 'Collected' : complete ? 'Collect reward' : `${task.progress}/${task.goal}`;
       const progressPercent = Math.min(100, task.progress / task.goal * 100);
       const progressLabel = task.levelTask ? `${task.progress.toLocaleString('en-US')} / ${task.goal.toLocaleString('en-US')} total score` : complete ? task.claimed ? 'Reward collected' : 'Complete · reward ready' : `${task.progress.toLocaleString('en-US')} / ${task.goal.toLocaleString('en-US')}`;
-      return `<article class="task-card ${task.claimed || complete ? 'task-complete' : ''}"><div class="task-icon">${task.levelTask ? '★' : task.id === 'cook' ? '♨' : task.id === 'upgrade' ? '✦' : '✓'}</div><div class="task-copy"><span class="task-tag">${task.levelTask ? 'LEVEL MILESTONE' : `DAILY · ${utcDateLabel()}`}</span><h2>${task.title}</h2><p>${task.description}</p><div class="task-progress"><span style="width:${progressPercent}%"></span></div><small>${progressLabel}</small></div><div class="task-reward"><b>${task.auto ? 'AUTO' : `+${task.reward}`}</b><small>${task.auto ? 'visit' : 'dumplings'}</small><button class="task-claim" type="button" data-claim-task="${task.id}" ${task.claimed || !complete || task.auto ? 'disabled' : ''}>${label}</button></div></article>`;
+      return `<article class="task-card ${task.claimed || complete ? 'task-complete' : ''}"><div class="task-icon" aria-hidden="true">${taskIllustration(task)}</div><div class="task-copy"><span class="task-tag">${task.levelTask ? 'LEVEL MILESTONE' : `DAILY · ${utcDateLabel()}`}</span><h2>${task.title}</h2><p>${task.description}</p><div class="task-progress"><span style="width:${progressPercent}%"></span></div><small>${progressLabel}</small></div><div class="task-reward"><b>${task.auto ? 'AUTO' : `+${task.reward}`}</b><small>${task.auto ? 'visit' : 'dumplings'}</small><button class="task-claim" type="button" data-claim-task="${task.id}" ${task.claimed || !complete || task.auto ? 'disabled' : ''}>${label}</button></div></article>`;
     }).join('');
     $('taskDot').hidden = !tasks.some(task => task.progress >= task.goal && !task.claimed && !task.auto);
+  }
+  function taskIllustration(task) {
+    const art = task.levelTask || task.id.startsWith('level-')
+      ? '<path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3L2.9 9.4l6.3-.9L12 2.8Z"/>'
+      : ({
+        cook: '<ellipse cx="6.5" cy="16.2" rx="4.9" ry="1.9"/><ellipse cx="17.5" cy="16.2" rx="4.9" ry="1.9"/><path d="M4.8 15.8c.2-1.1-.3-1.7-.7-2.6-.5-1.1-.4-2.1.2-3.1m2 5.7c.1-1.2-.3-2-.4-3.1-.1-1.3.5-2.3.7-3.4m2 6.5c-.2-1.1.2-1.9.1-2.9-.1-1.3-.6-2.1-.2-3.4m6.5 6.5c-.2-1.1.2-1.9.1-2.9-.1-1.3-.6-2.1-.2-3.4m2 6.3c-.1-1.2-.3-2-.4-3.1-.1-1.3.5-2.3.7-3.4m2 6.5c.2-1.1-.3-1.7-.7-2.6-.5-1.1-.4-2.1.2-3.1"/>',
+        collect: '<path d="M3 14c.5-3.4 3-6 6-6s5.5 2.6 6 6c-1.4 3.4-3.7 5-6 5s-4.6-1.6-6-5Z"/><path d="M3.7 13c3.3 1.6 7.3 1.6 10.6 0M10 10c.5-3.4 3-6 6-6s5.5 2.6 6 6c-1.4 3.4-3.7 5-6 5"/><path d="M10.7 9c3.3 1.6 7.3 1.6 10.6 0"/>',
+        'collect-dumplings': '<g transform="translate(2 0)"><path d="M3 14c.7-3.7 3.5-6 7-6s6.3 2.3 7 6c-1.7 3.5-4.3 5-7 5s-5.3-1.5-7-5Z"/><path d="M3.8 13c3.8 1.7 8.4 1.7 12.4 0M6 10c1.2-1.1 2.5-1.8 4-2"/></g>',
+        upgrade: '<path d="m13 2-8 12h6l-1 8 9-12h-6l1-8Z"/>',
+        'two-pots': '<path d="M4 11h16l-1.2 8H5.2L4 11Z"/><path d="M3 11h18M8 8.5h2m4 0h2"/><path d="m9 15 2 2 4-4"/>',
+        login: '<path d="M12 3v9m0 0 4-4m-4 4L8 8"/><path d="M5 14v5h14v-5"/>',
+      }[task.id] || '<path d="m5 12 4 4L19 6"/>');
+    return `<svg viewBox="0 0 24 24" focusable="false">${art}</svg>`;
   }
   function dailyTaskSet() {
     const variant = rules.dailyTaskVariant(state.dailyTaskVariant);
@@ -607,16 +620,12 @@
   }
   function render() {
     $('balance').textContent = state.balance.toLocaleString('en-US');
-    $('overallScore').textContent = state.score.toLocaleString('en-US');
     $('upgradeBalance').textContent = state.balance.toLocaleString('en-US');
     $('leaderScore').textContent = `${state.score.toLocaleString('en-US')} points`;
-    $('batches').textContent = state.batches.toLocaleString('en-US');
     $('playerName').textContent = telegramUser ? (telegramUser.first_name || telegramUser.username || 'Telegram Chef') : 'Little Chef';
     $('accountStatus').textContent = telegramUser ? `TELEGRAM · @${telegramUser.username || 'CHEF'}` : 'LOCAL DEMO · THIS DEVICE';
-    $('profileBalance').textContent = state.balance.toLocaleString('en-US');
     $('profileScore').textContent = state.score.toLocaleString('en-US');
-    $('profileBatches').textContent = state.batches.toLocaleString('en-US');
-    $('profileStartedBatches').textContent = startedBatchCount().toLocaleString('en-US');
+    $('profileCollectedBatches').textContent = state.batches.toLocaleString('en-US');
     $('profileCurrentStreak').textContent = state.streakCurrent.toLocaleString('en-US');
     $('profileBestStreak').textContent = state.streakBest.toLocaleString('en-US');
     $('profileInvitedFriends').textContent = '0';
