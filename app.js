@@ -264,7 +264,7 @@
     el.textContent = window.PelmeniI18n.translate(message); el.classList.add('show');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
   }
-  function utcDateLabel() { return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date()); }
+  function utcDateLabel() { return new Intl.DateTimeFormat(window.PelmeniI18n.language, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date()); }
   function legacySecondsOff() { return (state.equipped.includes('blue-tile') ? 3 : 0) + (state.equipped.includes('wooden-spoon') ? 3 : 0); }
   function cookDurationMs() { return TEST_COOK_DURATION_MS ?? rules.cookDuration(state.upgradeLevels, legacySecondsOff()); }
   function capacity() { return state.equipped.includes('second-pot') ? 2 : 1; }

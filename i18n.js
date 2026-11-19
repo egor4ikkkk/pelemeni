@@ -16,35 +16,37 @@
     'Fresh herb pots':'Горшочки со свежей зеленью', 'Blue kitchen tiles':'Синяя плитка', 'Carved wooden spoon':'Резная деревянная ложка', 'Second Pot':'Вторая конфорка', 'Good Stove':'Хорошая плита', 'Large Pot':'Большая кастрюля', 'Grandma’s Recipe':'Рецепт бабушки', 'First day in the kitchen':'Первый день на кухне', 'Welcome to Pelmeni Clicker.':'Добро пожаловать в «Пельмени-кликер».', 'Visit the kitchen for the first time.':'Впервые загляните на кухню.', 'First cooking':'Первая готовка', 'Your first pot is on the stove.':'Ваша первая кастрюля уже на плите.', 'First batch':'Первая партия', 'Collect your first pot of dumplings.':'Заберите первую партию пельменей.', 'First upgrade':'Первое улучшение', 'Improve your kitchen for the first time.':'Впервые улучшите кухню.', 'Dumpling sampler':'Проба пельменей', 'Your kitchen is getting busy.':'На кухне становится оживлённо.', 'Dumpling enthusiast':'Любитель пельменей', 'A growing lifetime harvest.':'Запасы пельменей растут.', 'A thousand dumplings':'Тысяча пельменей', 'A serious collection is taking shape.':'Собирается внушительная коллекция.', 'Dumpling keeper':'Хранитель пельменей', 'Thousands of dumplings have passed through your kitchen.':'Тысячи пельменей прошли через вашу кухню.', 'Pelmeni legend':'Легенда пельменей', 'A remarkable lifetime harvest.':'Впечатляющий запас пельменей.', 'Getting into the rhythm':'Вхожу в ритм', 'Ten batches have gone on the stove.':'Десять партий отправились на плиту.', 'Seasoned cook':'Опытный повар', 'Fifty batches have gone on the stove.':'Пятьдесят партий отправились на плиту.', 'Five batches':'Пять партий', 'Your cooking routine is underway.':'Вы вошли в ритм готовки.', 'Regular chef':'Постоянный повар', 'Ten batches collected.':'Собрано десять партий.', 'Kitchen favorite':'Любимец кухни', 'Twenty-five fresh batches collected.':'Собрано двадцать пять свежих партий.', 'Batch master':'Мастер партий', 'Fifty batches collected.':'Собрано пятьдесят партий.', 'Kitchen in progress':'Кухня развивается', 'Your kitchen has grown through steady improvements.':'Кухня растёт благодаря постоянным улучшениям.', 'Kitchen specialist':'Знаток кухни', 'Ten lasting kitchen improvements.':'Десять постоянных улучшений кухни.', 'Double the kitchen':'Двойная кухня', 'You can cook in two pots at once.':'Теперь можно готовить в двух кастрюлях сразу.', 'A personal touch':'Своя изюминка', 'Your kitchen has its own style.':'У вашей кухни появился свой стиль.', 'Master kitchen':'Мастер кухни', 'Two burners, one chef':'Две конфорки, один повар', 'Both pots have helped prepare a meal.':'Обе кастрюли помогли приготовить блюдо.', 'Three-day rhythm':'Ритм трёх дней', 'Three consecutive UTC visits.':'Три дня подряд в UTC.', 'A week in the kitchen':'Неделя на кухне', 'A full week of consecutive UTC visits.':'Целая неделя посещений подряд.', 'Kitchen regular':'Частый гость кухни', 'Two weeks of consecutive UTC visits.':'Две недели посещений подряд.', 'Thirty-day tradition':'Традиция длиной в месяц', 'Reach kitchen level 6.':'Достигните 6-го уровня кухни.', 'Buy 1 upgrade level or item.':'Купите один уровень улучшения или предмет.', 'Earn 100 dumplings over time.':'Заработайте 100 пельменей.', 'Buy 5 upgrade levels or items.':'Купите 5 уровней улучшений или предметов.', 'Buy 10 upgrade levels or items.':'Купите 10 уровней улучшений или предметов.', 'Own the Second Pot.':'Купите вторую конфорку.', 'Own all 3 kitchen decorations.':'Купите все 3 украшения кухни.', 'Collect a batch from each pot.':'Заберите по партии из каждой кастрюли.', 'A Better Stove':'Плита получше', 'A Bigger Pot':'Кастрюля побольше', "Grandma's Recipe":'Рецепт бабушки', 'Cook each batch 5% faster per level.':'Каждая партия готовится на 5% быстрее за уровень.', 'Add one dumpling to every batch per level.':'Каждый уровень добавляет по одному пельменю к партии.', 'Increase the base batch reward by 5% per level.':'Каждый уровень увеличивает базовую награду за партию на 5%.', '2 independent cooking slots':'2 независимые конфорки', '−3 sec cooking time / batch':'−3 сек. готовки за партию', '+3 dumplings / batch · −3 sec cooking time':'+3 пельменя за партию · −3 сек. готовки', '+2 dumplings / batch':'+2 пельменя за партию'
   };
   const patterns = [
+    [/^(.+) level$/, (_, name) => `${translate(name)} · уровень`],
+    [/^KITCHEN LEVEL (\d+)$/, (_, n) => `УРОВЕНЬ КУХНИ ${n}`],
     [/^Best streak: (\d+) (day|days)$/, (_, n, unit) => `Лучшая серия: ${n} ${unit === 'day' && n === '1' ? 'день' : 'дн.'}`],
-    [/^Next reward: \+(\d+) dumplings$/, (_, n) => `Следующая награда: +${n} пельменей`],
-    [/^Reward received: \+(\d+) dumplings\.$/, (_, n) => `Награда получена: +${n} пельменей.`],
+    [/^Next reward: \+(\d+) dumplings$/, (_, n) => `Следующая награда: +${n} ${dumplingWord(n)}`],
+    [/^Reward received: \+(\d+) dumplings\.$/, (_, n) => `Награда получена: +${n} ${dumplingWord(n)}.`],
     [/^Reach level (\d+)$/, (_, n) => `Достигните уровня ${n}`],
     [/^Reach ([\d,]+) total score to reach level (\d+)\.$/, (_, score, level) => `Наберите ${score} очков, чтобы достичь ${level}-го уровня.`],
     [/^(\d+) \/ ([\d,]+) total score$/, (_, n, total) => `${n} / ${total} очков`],
     [/^DAILY · (.+)$/, (_, date) => `ЕЖЕДНЕВНО · ${date}`],
-    [/^Upgrade · (\d+) dumplings$/, (_, n) => `Улучшить · ${n} пельменей`], [/^Need (\d+) dumplings$/, (_, n) => `Нужно ${n} пельменей`],
+    [/^Upgrade · (\d+) dumplings$/, (_, n) => `Улучшить · ${n} ${dumplingWord(n)}`], [/^Need (\d+) dumplings$/, (_, n) => `Нужно ${n} ${dumplingWord(n)}`],
     [/^Need (\d+) more · You have (\d+)$/, (_, n, balance) => `Нужно ещё ${n} · у вас ${balance}`],
-    [/^Get · (\d+) dumplings$/, (_, n) => `Купить · ${n} пельменей`], [/^Cost · (\d+) dumplings$/, (_, n) => `Цена · ${n} пельменей`],
+    [/^Get · (\d+) dumplings$/, (_, n) => `Купить · ${n} ${dumplingWord(n)}`], [/^Cost · (\d+) dumplings$/, (_, n) => `Цена · ${n} ${dumplingWord(n)}`],
     [/^Lv\. (\d+)\/(\d+)$/, (_, n, max) => `Ур. ${n}/${max}`], [/^Next · Lv\. (\d+)$/, (_, n) => `Далее · ур. ${n}`],
-    [/^Claim \+(\d+)$/, (_, n) => `Забрать +${n}`], [/^Reward: (\d+) dumplings$/, (_, n) => `Награда: ${n} пельменей`],
-    [/^\+(\d+) dumplings \/ batch$/, (_, n) => `+${n} пельменей за партию`],
+    [/^Claim \+(\d+)$/, (_, n) => `Забрать +${n}`], [/^Reward: (\d+) dumplings$/, (_, n) => `Награда: ${n} ${dumplingWord(n)}`],
+    [/^\+(\d+) dumplings \/ batch$/, (_, n) => `+${n} ${dumplingWord(n)} за партию`],
     [/^−(\d+) sec cooking time \/ batch$/, (_, n) => `−${n} сек. готовки за партию`],
     [/^\+(\d+) dumplings \/ batch$/, (_, n) => `+${n} пельменей за партию`],
     [/^\+(\d+)% batch reward$/, (_, n) => `+${n}% к награде за партию`],
-    [/^(\d+) points$/, (_, n) => `${n} очков`], [/^Start (\d+) batch(?:es)?\.$/, (_, n) => `Начните готовить ${n} партию.`],
-    [/^Collect (\d+) batches?\.$/, (_, n) => `Заберите ${n} готовую партию.`], [/^Earn ([\d,]+) dumplings over time\.$/, (_, n) => `Заработайте ${n} пельменей.`],
+    [/^(\d+) points$/, (_, n) => `${n} очков`], [/^Start (\d+) batch(?:es)?\.$/, (_, n) => `Начните готовить ${n} ${batchWord(n)}.`],
+    [/^Collect (\d+) batches?\.$/, (_, n) => `Заберите ${n} ${finishedBatchPhrase(n)}.`], [/^Earn ([\d,]+) dumplings over time\.$/, (_, n) => `Заработайте ${n} ${dumplingWord(n)}.`],
     [/^Reach a (\d+)-day best streak\.$/, (_, n) => `Достигните рекордной серии в ${n} дн.`],
     [/^\+(\d+)% faster$/, (_, n) => `На ${n}% быстрее`], [/^(\d+)% faster$/, (_, n) => `На ${n}% быстрее`],
-    [/^\+(\d+) dumplings \/ batch reward$/, (_, n) => `+${n} пельменей к награде за партию`],
+    [/^\+(\d+) dumplings \/ batch reward$/, (_, n) => `+${n} ${dumplingWord(n)} к награде за партию`],
     [/^POT (\d+) · READY TO COLLECT$/, (_, n) => `КАСТРЮЛЯ ${n} · ГОТОВО К СБОРУ`],
     [/^POT (\d+) · READY$/, (_, n) => `КАСТРЮЛЯ ${n} · ГОТОВО`], [/^POT (\d+) COMPLETE$/, (_, n) => `КАСТРЮЛЯ ${n} ГОТОВА`],
     [/^Collect Pot (\d+)$/, (_, n) => `Забрать · кастрюля ${n}`], [/^Start Pot (\d+)$/, (_, n) => `Начать · кастрюля ${n}`],
-    [/^Last batch: \+(\d+) dumplings\.$/, (_, n) => `Последняя партия: +${n} пельменей.`],
-    [/^Collected (\d+) dumplings\.$/, (_, n) => `Собрано пельменей: ${n}.`],
-    [/^Daily task complete: \+(\d+) dumplings\.$/, (_, n) => `Задание выполнено: +${n} пельменей.`],
-    [/^(?:Achievement|Streak) reward received: \+(\d+) dumplings\.$/, (_, n) => `Награда получена: +${n} пельменей.`],
-    [/^Level (\d+) reward: \+(\d+) dumplings\.$/, (_, level, n) => `Награда за уровень ${level}: +${n} пельменей.`],
+    [/^Last batch: \+(\d+) dumplings\.$/, (_, n) => `Последняя партия: +${n} ${dumplingWord(n)}.`],
+    [/^Collected (\d+) dumplings\.$/, (_, n) => `Собрано: ${n} ${dumplingWord(n)}.`],
+    [/^Daily task complete: \+(\d+) dumplings\.$/, (_, n) => `Задание выполнено: +${n} ${dumplingWord(n)}.`],
+    [/^(?:Achievement|Streak) reward received: \+(\d+) dumplings\.$/, (_, n) => `Награда получена: +${n} ${dumplingWord(n)}.`],
+    [/^Level (\d+) reward: \+(\d+) dumplings\.$/, (_, level, n) => `Награда за уровень ${level}: +${n} ${dumplingWord(n)}.`],
     [/^(.+) upgraded to level (\d+)\.$/, (_, name, level) => `${translations[name] || name}: улучшение до ${level}-го уровня.`],
     [/^(.+) added to your kitchen\.$/, (_, name) => `${translations[name] || name} добавлено на кухню.`],
     [/^(\d+)\/(\d+) unlocked$/, (_, n, total) => `Открыто: ${n}/${total}`],
@@ -52,8 +54,22 @@
     [/^P(\d+) · (\d{2}:\d{2})$/, (_, n, time) => `К${n} · ${time}`],
     [/^PLAYER LEVEL (\d+)$/, (_, n) => `УРОВЕНЬ ИГРОКА ${n}`],
     [/^(\d+)–(\d+) dumplings$/, (_, low, high) => `${low}–${high} пельменей`],
-    [/^\+(\d+) dumplings$/, (_, n) => `+${n} пельменей`],
-    [/^(\d+)\/(\d+) unlocked · (\d+) rewards? ready$/, (_, n, total, ready) => `Открыто ${n}/${total} · наград доступно: ${ready}`]
+    [/^\+(\d+) dumplings$/, (_, n) => `+${n} ${dumplingWord(n)}`],
+    [/^(\d+)\/(\d+) unlocked · (\d+) rewards? ready$/, (_, n, total, ready) => `Открыто ${n}/${total} · наград доступно: ${ready}`],
+    [/^(\d+) pot is cooking$/, (_, n) => `Готовится кастрюля ${n}`], [/^(\d+) pots are cooking$/, (_, n) => `Готовятся кастрюли: ${n}`],
+    [/^Pot (\d+) is ready to collect$/, (_, n) => `Кастрюля ${n} готова к сбору`],
+    [/^Pot (\d+) is ready\. Collect its dumplings with the matching button\.$/, (_, n) => `Кастрюля ${n} готова. Заберите пельмени соответствующей кнопкой.`],
+    [/^Pot (\d+) is cooking\. Time remaining (.+)$/, (_, n, time) => `Кастрюля ${n} готовится. Осталось ${time}`],
+    [/^Start cooking in pot (\d+)$/, (_, n) => `Начать готовить на конфорке ${n}`], [/^Collect dumplings from pot (\d+)$/, (_, n) => `Забрать пельмени с конфорки ${n}`],
+    [/^Cooking · (.+)$/, (_, time) => `Готовится · ${time}`], [/^A fresh batch takes (.+)\. You can close the app and return later\.$/, (_, time) => `Новая партия готовится ${time}. Можно закрыть игру и вернуться позже.`],
+    [/^Achievement unlocked: (.+)$/, (_, title) => `Достижение открыто: ${translate(title)}`],
+    [/^Achievement reward received: \+(\d+) dumplings\.$/, (_, n) => `Награда за достижение: +${n} пельменей.`],
+    [/^Streak reward received: \+(\d+) dumplings\.$/, (_, n) => `Награда за серию: +${n} пельменей.`],
+    [/^The pot is on\. See you when it is ready!$/, () => 'Кастрюля на плите. Возвращайтесь, когда всё будет готово!'],
+    [/^Saved on this device · sync retrying$/, () => 'Сохранено на устройстве · повтор синхронизации'],
+    [/^You need (\d+) more dumplings\.$/, (_, n) => `Нужно ещё ${n} пельменей.`],
+    [/^(.+) upgraded to level (\d+)\.$/, (_, name, level) => `${translations[name] || name}: улучшение до ${level}-го уровня.`],
+    [/^(.+) added to your kitchen\.$/, (_, name) => `${translations[name] || name} добавлено на кухню.`]
   ];
   const ukrainian = {
     'Warming up the kitchen':'Готуємо кухню', 'Loading your saved progress…':'Завантажуємо збережений прогрес…', 'Loading save…':'Завантаження збереження…', 'cook?':'готувати?', 'DUMPLINGS':'ПЕЛЬМЕНІ', 'Kitchen is ready':'Кухня готова', 'NEW BATCH':'НОВА ПАРТІЯ', 'KITCHEN LEVEL':'РІВЕНЬ КУХНІ', 'PLAYER LEVEL':'РІВЕНЬ ГРАВЦЯ', 'Chef says':'Шеф каже', 'almost ready!':'майже готово!', 'FRESH FROM THE KITCHEN':'ЩОЙНО З КУХНІ', 'POT ON · GOOD THINGS TAKE TIME':'КАСТРУЛЯ НА ПЛИТІ · ТЕРПІННЯ І СМАК', 'POT':'КАСТРУЛЯ', 'READY TO COLLECT':'ГОТОВО ДО ЗБОРУ', 'READY':'ГОТОВО', 'COOKING':'ГОТУЄТЬСЯ', 'TIME LEFT · NEXT POT':'ЗАЛИШИЛОСЯ · НАСТУПНА КАСТРУЛЯ', 'COOKING TIME':'ЧАС ПРИГОТУВАННЯ', 'READY!':'ГОТОВО!', 'Start cooking':'Почати готувати', 'Collect dumplings':'Забрати пельмені',
@@ -65,9 +81,33 @@
     'First steps':'Перші кроки', 'Dumpling collector':'Колекціонер пельменів', 'Cooking master':'Майстер готування', 'Kitchen growth':'Розвиток кухні', 'Consistency':'Постійність', 'LOCKED':'ЗАБЛОКОВАНО', 'REWARD CLAIMED':'НАГОРОДУ ОТРИМАНО', 'REWARD READY':'НАГОРОДА ДОСТУПНА', 'Locked':'Заблоковано', 'Claimed':'Отримано', 'Claim':'Забрати', 'Reward:':'Нагорода:', 'Main navigation':'Основна навігація', 'Upgrades':'Покращення', 'Tasks':'Завдання', 'Leaders':'Лідери', 'Profile':'Профіль', 'Synced':'Синхронізовано', 'This device only':'Лише на цьому пристрої', 'Offline · saved on this device':'Немає мережі · збережено на пристрої', 'Local save failed':'Не вдалося зберегти на пристрої',
     'Fresh herb pots':'Горщики зі свіжою зеленню', 'Blue kitchen tiles':'Синя плитка на кухні', 'Carved wooden spoon':'Різьблена дерев’яна ложка', 'Second Pot':'Друга конфорка', 'Good Stove':'Краща плита', 'Large Pot':'Більша каструля', "Grandma's Recipe":'Рецепт бабусі', 'First day in the kitchen':'Перший день на кухні', 'First cooking':'Перше готування', 'First batch':'Перша партія', 'First upgrade':'Перше покращення', 'Dumpling sampler':'Дегустатор пельменів', 'Dumpling enthusiast':'Любитель пельменів', 'A thousand dumplings':'Тисяча пельменів', 'Dumpling keeper':'Зберігач пельменів', 'Pelmeni legend':'Легенда пельменів', 'Getting into the rhythm':'Входжу в ритм', 'Seasoned cook':'Досвідчений кухар', 'Five batches':'П’ять партій', 'Regular chef':'Постійний кухар', 'Kitchen favorite':'Улюбленець кухні', 'Batch master':'Майстер партій', 'Kitchen in progress':'Кухня розвивається', 'Kitchen specialist':'Знавець кухні', 'Double the kitchen':'Подвійна кухня', 'A personal touch':'Власний стиль', 'Master kitchen':'Майстер кухні', 'Two burners, one chef':'Дві конфорки, один кухар', 'Three-day rhythm':'Ритм трьох днів', 'A week in the kitchen':'Тиждень на кухні', 'Kitchen regular':'Частий гість кухні', 'Thirty-day tradition':'Традиція завдовжки в місяць', 'A Better Stove':'Краща плита', 'A Bigger Pot':'Більша каструля', 'Cook each batch 5% faster per level.':'Кожна партія готується на 5% швидше за рівень.', 'Add one dumpling to every batch per level.':'Кожен рівень додає по одному пельменю до партії.', 'Increase the base batch reward by 5% per level.':'Кожен рівень збільшує базову нагороду за партію на 5%.', '2 independent cooking slots':'2 незалежні конфорки'
   };
-  Object.assign(translations, { 'Ready to':'Пора' });
+  Object.assign(translations, {
+    'Ready to':'Пора', 'Cooking pot and timer':'Кастрюля и таймер', 'A friendly pot full of round dumplings':'Дружелюбная кастрюля с пельменями',
+    'LOCAL DEMO · THIS DEVICE':'ЛОКАЛЬНАЯ ИГРА · ЭТО УСТРОЙСТВО', 'Decoration removed.':'Украшение снято.', 'Decoration equipped.':'Украшение установлено.',
+    'The pot is on. See you when it is ready!':'Кастрюля на плите. Возвращайтесь, когда всё будет готово!', 'Saved on this device · sync retrying':'Сохранено на устройстве · повтор синхронизации',
+    'Little Chef':'Маленький повар', 'Telegram Chef':'Повар Telegram', 'Start Pot 2':'Начать · кастрюля 2', 'Collect Pot 1':'Забрать · кастрюля 1', 'Collect Pot 2':'Забрать · кастрюля 2',
+    'Cook each batch 5% faster per level.':'Каждый уровень ускоряет готовку на 5%.', 'Add one dumpling to every batch per level.':'Каждый уровень добавляет по одному пельменю в партию.',
+    'Increase the base batch reward by 5% per level.':'Каждый уровень увеличивает базовую награду за партию на 5%.', 'Equip a second burner and pot to cook another batch at the same time.':'Установите вторую конфорку и кастрюлю, чтобы готовить ещё одну партию одновременно.',
+    '2 independent cooking slots':'2 независимые конфорки', 'Maximum level reached':'Достигнут максимальный уровень', 'Enough dumplings to upgrade':'Пельменей хватает на улучшение',
+    'Owned · equipped':'Куплено · установлено', 'Owned · stored':'Куплено · в запасе', 'TELEGRAM':'ТЕЛЕГРАМ', 'A fresh batch takes':'Новая партия готовится',
+    '+2 dumplings with every collected batch.':'+2 пельменя за каждую собранную партию.', 'Reduce cooking time by 3 seconds per batch.':'Сокращает время готовки на 3 секунды за партию.',
+    '+3 dumplings per batch and reduce cooking time by 3 seconds.':'+3 пельменя за партию и минус 3 секунды готовки.', '+3 dumplings / batch · −3 sec cooking time':'+3 пельменя за партию · −3 сек. готовки',
+    'Pelmeni Clicker home':'На главную Pelmeni Clicker', 'Player statistics':'Статистика игрока'
+  });
   Object.assign(ukrainian, {
-    'Ready to':'Час', 'Cooking pot and timer':'Каструля і таймер', 'A friendly pot full of round dumplings':'Привітна каструля з пельменями', 'LOCAL DEMO · THIS DEVICE':'ЛОКАЛЬНА ГРА · ЦЕЙ ПРИСТРІЙ',
+    'Start Pot 2':'Почати · каструля 2', 'Collect Pot 1':'Забрати · каструля 1', 'Collect Pot 2':'Забрати · каструля 2',
+    'Cooking pot and timer':'Каструля і таймер', 'A friendly pot full of round dumplings':'Привітна каструля з пельменями', 'LOCAL DEMO · THIS DEVICE':'ЛОКАЛЬНА ГРА · ЦЕЙ ПРИСТРІЙ',
+    'The pot is on. See you when it is ready!':'Каструля на плиті. Повертайтеся, коли все буде готово!', 'Saved on this device · sync retrying':'Збережено на пристрої · повторна синхронізація',
+    'Little Chef':'Маленький кухар', 'Telegram Chef':'Кухар Telegram', 'Decoration removed.':'Прикрасу знято.', 'Decoration equipped.':'Прикрасу встановлено.',
+    'Equip a second burner and pot to cook another batch at the same time.':'Установіть другу конфорку й каструлю, щоб готувати ще одну партію одночасно.',
+    '2 independent cooking slots':'2 незалежні конфорки', 'Owned · equipped':'Придбано · встановлено', 'Owned · stored':'Придбано · у запасі',
+    'TELEGRAM':'TELEGRAM', 'A fresh batch takes':'Нова партія готується',
+    '+2 dumplings with every collected batch.':'+2 пельмені за кожну зібрану партію.', 'Reduce cooking time by 3 seconds per batch.':'Скорочує час приготування на 3 секунди за партію.',
+    '+3 dumplings per batch and reduce cooking time by 3 seconds.':'+3 пельмені за партію та мінус 3 секунди приготування.', '+3 dumplings / batch · −3 sec cooking time':'+3 пельмені за партію · −3 с приготування'
+  });
+  Object.assign(ukrainian, {
+    'Ready to':'Готові', 'Pelmeni Clicker home':'На головну Pelmeni Clicker', 'Player statistics':'Статистика гравця',
+    'Cooking pot and timer':'Каструля і таймер', 'A friendly pot full of round dumplings':'Привітна каструля з пельменями', 'LOCAL DEMO · THIS DEVICE':'ЛОКАЛЬНА ГРА · ЦЕЙ ПРИСТРІЙ',
     'Kitchen is ready':'Кухня готова', 'Kitchen status will appear after your save loads.':'Статус кухні з’явиться після завантаження збереження.',
     'A fresh batch takes':'Нова партія готується', 'Both pots are cooking. Collect a batch when it is ready.':'Обидві каструлі готуються. Заберіть партію, коли вона буде готова.',
     'The other pot is free. Start a batch there while this one cooks.':'Друга конфорка вільна. Почніть готувати там, поки перша партія вариться.',
@@ -89,29 +129,34 @@
     'Loading cloud save…':'Завантаження хмарного збереження…', 'Offline · saved on this device':'Офлайн · збережено на пристрої', 'Local save failed':'Не вдалося зберегти локально', 'Decoration removed.':'Прикрасу знято.', 'Decoration equipped.':'Прикрасу встановлено.'
   });
   const ukrainianPatterns = [
+    [/^(\d+)\/(\d+) unlocked(?: · (\d+) rewards? ready)?$/, (_, count, total, ready) => `Відкрито ${count}/${total}${ready ? ` · доступно нагород: ${ready}` : ''}`],
+    [/^(.+) level$/, (_, name) => `${translate(name)} · рівень`],
+    [/^KITCHEN LEVEL (\d+)$/, (_, n) => `РІВЕНЬ КУХНІ ${n}`],
+    [/^\+(\d+)% batch reward$/, (_, n) => `+${n}% до нагороди за партію`],
+    [/^\+(\d+) dumplings \/ batch reward$/, (_, n) => `+${n} ${dumplingWord(n)} до нагороди за партію`],
     [/^Best streak: (\d+) (day|days)$/, (_, n, unit) => `Найдовша серія: ${n} ${unit === 'day' && n === '1' ? 'день' : 'дн.'}`],
-    [/^Next reward: \+(\d+) dumplings$/, (_, n) => `Наступна нагорода: +${n} пельменів`],
-    [/^Reward received: \+(\d+) dumplings\.$/, (_, n) => `Нагороду отримано: +${n} пельменів.`],
+    [/^Next reward: \+(\d+) dumplings$/, (_, n) => `Наступна нагорода: +${n} ${dumplingWord(n)}`],
+    [/^Reward received: \+(\d+) dumplings\.$/, (_, n) => `Нагороду отримано: +${n} ${dumplingWord(n)}.`],
     [/^Reach level (\d+)$/, (_, n) => `Досягніть рівня ${n}`],
     [/^Reach ([\d,]+) total score to reach level (\d+)\.$/, (_, score, level) => `Наберіть ${score} очок, щоб досягти ${level}-го рівня.`],
     [/^(\d+) \/ ([\d,]+) total score$/, (_, n, total) => `${n} / ${total} очок`],
     [/^DAILY · (.+)$/, (_, date) => `ЩОДНЯ · ${date}`],
-    [/^Upgrade · (\d+) dumplings$/, (_, n) => `Покращити · ${n} пельменів`], [/^Need (\d+) dumplings$/, (_, n) => `Потрібно ${n} пельменів`],
+    [/^Upgrade · (\d+) dumplings$/, (_, n) => `Покращити · ${n} ${dumplingWord(n)}`], [/^Need (\d+) dumplings$/, (_, n) => `Потрібно ${n} ${dumplingWord(n)}`],
     [/^Need (\d+) more · You have (\d+)$/, (_, n, balance) => `Потрібно ще ${n} · у вас ${balance}`],
-    [/^Get · (\d+) dumplings$/, (_, n) => `Купити · ${n} пельменів`], [/^Cost · (\d+) dumplings$/, (_, n) => `Ціна · ${n} пельменів`],
+    [/^Get · (\d+) dumplings$/, (_, n) => `Купити · ${n} ${dumplingWord(n)}`], [/^Cost · (\d+) dumplings$/, (_, n) => `Ціна · ${n} ${dumplingWord(n)}`],
     [/^Lv\. (\d+)\/(\d+)$/, (_, n, max) => `Рів. ${n}/${max}`], [/^Next · Lv\. (\d+)$/, (_, n) => `Далі · рів. ${n}`],
-    [/^Claim \+(\d+)$/, (_, n) => `Забрати +${n}`], [/^Reward: (\d+) dumplings$/, (_, n) => `Нагорода: ${n} пельменів`],
-    [/^\+(\d+) dumplings \/ batch$/, (_, n) => `+${n} пельменів за партію`], [/^−(\d+) sec cooking time \/ batch$/, (_, n) => `−${n} с приготування за партію`],
-    [/^(\d+) points$/, (_, n) => `${n} очок`], [/^Start (\d+) batch(?:es)?\.$/, (_, n) => `Почніть готувати ${n} партію.`],
-    [/^Collect (\d+) batches?\.$/, (_, n) => `Заберіть ${n} готову партію.`], [/^Earn ([\d,]+) dumplings over time\.$/, (_, n) => `Заробіть ${n} пельменів.`],
+    [/^Claim \+(\d+)$/, (_, n) => `Забрати +${n}`], [/^Reward: (\d+) dumplings$/, (_, n) => `Нагорода: ${n} ${dumplingWord(n)}`],
+    [/^\+(\d+) dumplings \/ batch$/, (_, n) => `+${n} ${dumplingWord(n)} за партію`], [/^−(\d+) sec cooking time \/ batch$/, (_, n) => `−${n} с приготування за партію`],
+    [/^(\d+) points$/, (_, n) => `${n} очок`], [/^Start (\d+) batch(?:es)?\.$/, (_, n) => `Почніть готувати ${n} ${batchWord(n)}`],
+    [/^Collect (\d+) batches?\.$/, (_, n) => `Заберіть ${n} ${finishedBatchPhrase(n)}`], [/^Earn ([\d,]+) dumplings over time\.$/, (_, n) => `Заробіть ${n} ${dumplingWord(n)}.`],
     [/^Reach a (\d+)-day best streak\.$/, (_, n) => `Досягніть рекордної серії у ${n} дн.`],
     [/^\+(\d+)% faster$/, (_, n) => `На ${n}% швидше`], [/^(\d+)% faster$/, (_, n) => `На ${n}% швидше`],
     [/^POT (\d+) · READY TO COLLECT$/, (_, n) => `КАСТРУЛЯ ${n} · ГОТОВО ДО ЗБОРУ`], [/^POT (\d+) · READY$/, (_, n) => `КАСТРУЛЯ ${n} · ГОТОВО`],
     [/^POT (\d+) COMPLETE$/, (_, n) => `КАСТРУЛЯ ${n} ГОТОВА`], [/^Collect Pot (\d+)$/, (_, n) => `Забрати · каструля ${n}`], [/^Start Pot (\d+)$/, (_, n) => `Почати · каструля ${n}`],
-    [/^Last batch: \+(\d+) dumplings\.$/, (_, n) => `Остання партія: +${n} пельменів.`], [/^Collected (\d+) dumplings\.$/, (_, n) => `Зібрано пельменів: ${n}.`],
-    [/^Daily task complete: \+(\d+) dumplings\.$/, (_, n) => `Завдання виконано: +${n} пельменів.`],
-    [/^(?:Achievement|Streak) reward received: \+(\d+) dumplings\.$/, (_, n) => `Нагороду отримано: +${n} пельменів.`],
-    [/^Level (\d+) reward: \+(\d+) dumplings\.$/, (_, level, n) => `Нагорода за рівень ${level}: +${n} пельменів.`],
+    [/^Last batch: \+(\d+) dumplings\.$/, (_, n) => `Остання партія: +${n} ${dumplingWord(n)}.`], [/^Collected (\d+) dumplings\.$/, (_, n) => `Зібрано ${n} ${dumplingWord(n)}.`],
+    [/^Daily task complete: \+(\d+) dumplings\.$/, (_, n) => `Завдання виконано: +${n} ${dumplingWord(n)}.`],
+    [/^(?:Achievement|Streak) reward received: \+(\d+) dumplings\.$/, (_, n) => `Нагороду отримано: +${n} ${dumplingWord(n)}.`],
+    [/^Level (\d+) reward: \+(\d+) dumplings\.$/, (_, level, n) => `Нагорода за рівень ${level}: +${n} ${dumplingWord(n)}.`],
     [/^PLAYER LEVEL (\d+)$/, (_, n) => `РІВЕНЬ ГРАВЦЯ ${n}`], [/^(\d+)–(\d+) dumplings$/, (_, low, high) => `${low}–${high} пельменів`],
     [/^\+(\d+) dumplings$/, (_, n) => `+${n} пельменів`], [/^COOKING · (\d+)\/(\d+)$/, (_, n, total) => `ГОТУЄТЬСЯ · ${n}/${total}`],
     [/^P(\d+) · (\d{2}:\d{2})$/, (_, n, time) => `К${n} · ${time}`],
@@ -121,9 +166,35 @@
     [/^Pot (\d+) is cooking\. Time remaining (.+)$/, (_, n, time) => `Каструля ${n} готується. Залишилося ${time}`],
     [/^Pot (\d+) is ready to collect$/, (_, n) => `Каструля ${n} готова до збору`],
     [/^Pot (\d+) is ready\. Collect its dumplings with the matching button\.$/, (_, n) => `Каструля ${n} готова. Заберіть пельмені відповідною кнопкою.`],
-    [/^A fresh batch takes (.+)\. You can close the app and return later\.$/, (_, time) => `Нова партія готується ${time}. Можна закрити гру та повернутися пізніше.`]
+    [/^A fresh batch takes (.+)\. You can close the app and return later\.$/, (_, time) => `Нова партія готується ${time}. Можна закрити гру та повернутися пізніше.`],
+    [/^(\d+) pot is cooking$/, (_, n) => `Готується каструля ${n}`], [/^(\d+) pots are cooking$/, (_, n) => `Готуються каструлі: ${n}`],
+    [/^Cooking · (.+)$/, (_, time) => `Готується · ${time}`],
+    [/^Achievement unlocked: (.+)$/, (_, title) => `Досягнення відкрито: ${translate(title)}`],
+    [/^Achievement reward received: \+(\d+) dumplings\.$/, (_, n) => `Нагорода за досягнення: +${n} ${dumplingWord(n)}.`],
+    [/^Streak reward received: \+(\d+) dumplings\.$/, (_, n) => `Нагорода за серію: +${n} ${dumplingWord(n)}.`],
+    [/^The pot is on\. See you when it is ready!$/, () => 'Каструля на плиті. Повертайтеся, коли все буде готово!'],
+    [/^Saved on this device · sync retrying$/, () => 'Збережено на пристрої · повторна синхронізація'],
+    [/^You need (\d+) more dumplings\.$/, (_, n) => `Потрібно ще ${n} пельменів.`],
+    [/^(.+) upgraded to level (\d+)\.$/, (_, name, level) => `${ukrainian[name] || name}: покращено до ${level}-го рівня.`],
+    [/^(.+) added to your kitchen\.$/, (_, name) => `${ukrainian[name] || name} додано на кухню.`]
   ];
   let language = ['ru', 'uk'].includes(localStorage.getItem(key)) ? localStorage.getItem(key) : 'en';
+  function dumplingWord(value, locale = language) {
+    const n = Math.abs(Number(String(value).replaceAll(',', '')) || 0);
+    const last = n % 10, lastTwo = n % 100;
+    if (locale === 'uk') return lastTwo >= 11 && lastTwo <= 14 ? 'пельменів' : last === 1 ? 'пельмень' : last >= 2 && last <= 4 ? 'пельмені' : 'пельменів';
+    return lastTwo >= 11 && lastTwo <= 14 ? 'пельменей' : last === 1 ? 'пельмень' : last >= 2 && last <= 4 ? 'пельменя' : 'пельменей';
+  }
+  function batchWord(value, locale = language) {
+    const n = Math.abs(Number(value) || 0), last = n % 10, lastTwo = n % 100;
+    if (locale === 'uk') return lastTwo >= 11 && lastTwo <= 14 ? 'партій' : last === 1 ? 'партію' : last >= 2 && last <= 4 ? 'партії' : 'партій';
+    return lastTwo >= 11 && lastTwo <= 14 ? 'партий' : last === 1 ? 'партию' : last >= 2 && last <= 4 ? 'партии' : 'партий';
+  }
+  function finishedBatchPhrase(value, locale = language) {
+    const n = Math.abs(Number(value) || 0), last = n % 10, lastTwo = n % 100;
+    if (locale === 'uk') return lastTwo >= 11 && lastTwo <= 14 || last >= 5 || last === 0 ? 'готових партій' : last === 1 ? 'готову партію' : 'готові партії';
+    return lastTwo >= 11 && lastTwo <= 14 || last >= 5 || last === 0 ? 'готовых партий' : last === 1 ? 'готовую партию' : 'готовые партии';
+  }
   function translate(text) {
     if (language === 'uk') {
       if (ukrainian[text]) return ukrainian[text];
@@ -159,4 +230,5 @@
     }
   }
   window.PelmeniI18n = { get language() { return language; }, translate, apply, toggle() { language = language === 'en' ? 'ru' : language === 'ru' ? 'uk' : 'en'; localStorage.setItem(key, language); location.reload(); } };
+  apply();
 })();
