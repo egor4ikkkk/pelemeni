@@ -261,7 +261,7 @@
     const el = $('toast');
     const nav = document.querySelector('.bottom-nav');
     if (nav) el.style.bottom = `${Math.ceil(nav.getBoundingClientRect().height) + 12}px`;
-    el.textContent = message; el.classList.add('show');
+    el.textContent = window.PelmeniI18n.translate(message); el.classList.add('show');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
   }
   function utcDateLabel() { return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date()); }
@@ -617,6 +617,7 @@
     const range = rules.batchDumplingRange(state.upgradeLevels, (state.equipped.includes('herb-pot') ? 2 : 0) + (state.equipped.includes('wooden-spoon') ? 3 : 0));
     $('rewardNote').innerHTML = `<span>✦</span> <b>${range.min}–${range.max} dumplings</b> per batch`;
     $('activeBatchList').innerHTML = '';
+    window.PelmeniI18n.apply();
   }
   function render() {
     $('balance').textContent = state.balance.toLocaleString('en-US');
@@ -633,7 +634,7 @@
     $('profileAchievementClaimsCount').textContent = achievementDefinitions.filter(item => state.achievementClaims.includes(item.id)).length.toLocaleString('en-US');
     $('profileKitchenLevel').textContent = rules.playerLevel(state.score);
     $('profileUpgradeCount').textContent = totalUpgradeLevels() + state.upgrades.length;
-    $('joinedDate').textContent = state.joinedAt ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(state.joinedAt)) : 'Today';
+    $('joinedDate').textContent = state.joinedAt ? new Intl.DateTimeFormat(window.PelmeniI18n.language, { dateStyle: 'medium' }).format(new Date(state.joinedAt)) : 'Today';
     $('kitchenLevel').textContent = `PLAYER LEVEL ${rules.playerLevel(state.score)}`;
     $('lastBatchText').textContent = state.lastBatchReward ? `Last batch: +${state.lastBatchReward.dumplings} dumplings.` : 'Your first batch is waiting to be cooked.';
     $('kitchenArt').classList.toggle('decor-herb-pot', state.equipped.includes('herb-pot'));
@@ -641,6 +642,7 @@
     $('kitchenArt').classList.toggle('decor-wooden-spoon', state.equipped.includes('wooden-spoon'));
     updateBatchFields();
     renderLevelledUpgrades(); renderDailyTasks(); renderAchievements();
+    window.PelmeniI18n.apply();
   }
   function startBatch(pot = 1) {
     if (pot > capacity() || batchForPot(pot)) return false;
@@ -769,6 +771,7 @@
     if (button) claimAchievement(button.dataset.claimAchievement);
   });
   $('claimStreakButton').addEventListener('click', claimStreakReward);
+  $('languageToggle').addEventListener('click', () => window.PelmeniI18n.toggle());
   document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => {
     const tab = button.dataset.tab;
     document.querySelectorAll('.nav-item').forEach(item => {

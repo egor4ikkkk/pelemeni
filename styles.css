@@ -300,6 +300,7 @@ a,
 .topbar{gap:8px;min-width:0}
 .brand{min-width:0;flex:0 1 auto;white-space:nowrap}
 .topbar-actions{min-width:0;max-width:52%;flex:0 1 auto}
+.language-toggle{flex:none;min-height:30px;padding:4px 8px;border:1px solid #2a5877;border-radius:9px;background:#102d49;color:#d9effc;font-size:9px;font-weight:900;cursor:pointer}
 .sync-status{display:block;min-width:0;max-width:100%;overflow:visible;overflow-wrap:anywhere;text-overflow:clip;white-space:normal;text-align:center;line-height:1.25}
 @media(max-width:360px){
   .brand{gap:7px;font-size:10px;letter-spacing:.8px}
